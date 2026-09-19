@@ -1,0 +1,48 @@
+{
+  "name": "thinktank-academia",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"tsx watch backend/src/server.ts\" \"vite --host 0.0.0.0\"",
+    "build": "vite build",
+    "start": "tsx backend/src/server.ts",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "bcryptjs": "latest",
+    "compression": "latest",
+    "cors": "latest",
+    "express": "latest",
+    "express-rate-limit": "latest",
+    "helmet": "latest",
+    "jsonwebtoken": "latest",
+    "multer": "latest",
+    "pg": "latest",
+    "pg-mem": "^3.0.14",
+    "react": "latest",
+    "react-dom": "latest",
+    "react-router-dom": "latest",
+    "sanitize-html": "latest",
+    "tsx": "latest",
+    "vite": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "latest",
+    "@types/compression": "^1.8.1",
+    "@types/cors": "^2.8.19",
+    "@types/express": "latest",
+    "@types/jsonwebtoken": "latest",
+    "@types/multer": "latest",
+    "@types/node": "latest",
+    "@types/pg": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "@types/sanitize-html": "latest",
+    "concurrently": "latest",
+    "typescript": "latest"
+  }
+}
