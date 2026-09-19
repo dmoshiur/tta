@@ -23,8 +23,9 @@ ThinkTank Academia is a complete, multidisciplinary learning and knowledge platf
 ## 2. Technology Architecture
 
 - **Backend:** Node.js (v22+), Express 5, TypeScript.
-- **Database:** PostgreSQL (with fallback to disposable in-memory `pg-mem` for zero-configuration local development and tests). Idempotent migration and starter content seed on boot.
+- **Database:** **Turso (libsql/SQLite)** over HTTPS in production via `@libsql/client`. For zero-configuration local development the API falls back to a local SQLite file (`./data/thinktank.sqlite`), and tests run on disposable in-memory SQLite. Idempotent migration and starter content seed on boot.
 - **Security:** Bcrypt salted password hashing, signed JWT Bearer authentication, role-based permission enforcement, Helmet security headers, CORS origin allowlists, and rate limiting.
+- **Operations:** A hidden emergency console at `/hackeradmin` (hourly rotating, e-mailed passcode) with a site on/off kill switch, live traffic & visitor monitoring, and admin/super-admin oversight. See §7.
 - **Storage:** Pluggable storage abstraction supporting local storage for development and S3-compatible providers (Cloudflare R2, AWS S3, MinIO) for production.
 - **Email & Push:** Transactional password reset emails via SMTP and push notification device token registration.
 - **Frontend:** React 19, TypeScript, React Router 7, Vite 8.
@@ -39,12 +40,13 @@ thinktank-academia/
 ├── backend/
 │   ├── src/
 │   │   ├── admin/             # Resource schema registry & publish timers
-│   │   ├── db/                # PostgreSQL portable schema, pool & starter seed library
-│   │   ├── lib/               # Storage (S3/local), mail, sanitization, utilities
+│   │   ├── db/                # Turso (libsql/SQLite) client, schema & starter seed library
+│   │   ├── lib/               # Storage (S3/local), mail, traffic log, site switch, utilities
 │   │   ├── middleware/        # JWT auth, role permissions, rate limiters, error handler
-│   │   ├── routes/            # Versioned API routes (auth, courses, quizzes, content, admin)
+│   │   ├── pages/             # Standalone /hackeradmin operations console
+│   │   ├── routes/            # Versioned API routes (auth, courses, quizzes, content, admin, hackeradmin)
 │   │   ├── security/          # Password hashing, token signing, session cache
-│   │   ├── services/          # In-app notifications & audit activity logging
+│   │   ├── services/          # Notifications, audit log & hacker-admin passcode rotation
 │   │   ├── config.ts          # Central environment configuration
 │   │   └── server.ts          # Express server lifecycle & SPA static server
 ├── frontend/
@@ -85,7 +87,7 @@ thinktank-academia/
    ```bash
    cp .env.example .env
    ```
-   *(Without `DATABASE_URL`, the server automatically starts using an in-memory PostgreSQL engine so you can develop immediately with zero external dependencies).*
+   *(Without `DATABASE_URL`, the server automatically starts on a local SQLite file in `./data` so you can develop immediately with zero external dependencies. In production point `DATABASE_URL` at your Turso database, e.g. `libsql://user:password@your-db.your-org.turso.io`.)*
 
 3. Start development servers:
    ```bash
@@ -96,7 +98,7 @@ thinktank-academia/
    - Health endpoint: `http://localhost:3000/api/health`
 
 4. Automated administrative seeding:
-   If `ADMIN_EMAIL` and `ADMIN_PASSWORD` are provided in `.env`, the system automatically provisions the initial Super Administrator on the first startup.
+   If `SUPER_ADMIN_EMAIL` and `SUPER_ADMIN_PASSWORD` are provided in `.env`, the system automatically provisions the initial Super Administrator on the first startup. (The legacy `ADMIN_EMAIL` / `ADMIN_PASSWORD` variables are still honoured.)
 
 ---
 
@@ -117,22 +119,50 @@ thinktank-academia/
 This repository is configured for one-click deployment using Render Blueprints (`render.yaml`).
 
 1. Connect this repository to your Render account.
-2. Render provisions:
-   - Web service (`thinktank-academia`) running Node.js.
-   - Managed PostgreSQL database (`thinktank-db`).
-3. Set environment variables in Render:
+2. Render provisions the web service (`thinktank-academia`) running Node.js.
+3. **Create the Turso database** (https://turso.io):
+   ```bash
+   npm i -g @turso/cli
+   turso db create thinktank
+   turso db show thinktank --url      # → DATABASE_URL
+   turso db show thinktank --auth-token
+   ```
+4. Set environment variables in Render:
+   - `DATABASE_URL`: Your Turso libsql URL (see above).
    - `PUBLIC_URL`: Your deployed HTTPS service URL (e.g., `https://thinktank-academia.onrender.com`).
    - `FRONTEND_URL`: Allowed CORS origin(s).
-   - `ADMIN_EMAIL`: Initial admin login address.
-   - `ADMIN_PASSWORD`: Strong initial administrator password.
-4. Health check:
+   - `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD`: The Super Admin account that owns the admin console (seeded on first boot).
+   - `HACKER_ADMIN_EMAIL`: Where the hourly `/hackeradmin` passcode is e-mailed (default `mdmoshiurrahmanmohi1@gmail.com`).
+   - `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD`: Required for passcode e-mails and password resets.
+5. Health check:
    - Health path: `/api/health` returns `200 OK`.
-5. Static & SPA Serving:
+6. Static & SPA Serving:
    - In production, Express automatically serves `dist/` and routes all non-API paths to `index.html`.
 
 ---
 
-## 7. Documentation Directory
+## 7. Hacker Admin — Emergency Operations Console (`/hackeradmin`)
+
+A hidden, passcode-protected operations console for the site owner. It is a standalone page (no React build) served directly by the API and stays reachable **even while the site is switched off**.
+
+**Access flow**
+1. On boot — and automatically every `HACKER_ADMIN_PASSCODE_TTL_MINUTES` (default **60**, i.e. the passcode changes every hour) — the server generates a new 8-character passcode (`XXXX-XXXX`).
+2. The code is **e-mailed via SMTP** to `HACKER_ADMIN_EMAIL` (default `mdmoshiurrahmanmohi1@gmail.com`). Only the SHA-256 hash is stored; the plaintext exists in the inbox and in memory.
+3. Enter the code at `/hackeradmin` to open a 60-minute session. A wrong/expired code is rejected (10 attempts per 15 min per IP).
+
+**Console capabilities**
+- ⏻ **Site power switch** — turn the whole site ON/OFF. When OFF, every API call returns `503 SITE_OFFLINE` and visitors see an offline screen; health checks, uploads and `/hackeradmin` itself stay up so you can always switch back on.
+- 📈 **Traffic** — requests per day (14 days), 2xx/3xx/4xx/5xx breakdown, API-vs-pages split, top paths, latest 50 requests.
+- 👥 **Visitors** — unique-IP counts (1 h / 24 h / 7 d), visitors per day, top user agents, referrers and most-active IPs.
+- 🛡 **Admins / Super Admin** — every administrator account with role & status, plus the `SUPER_ADMIN_EMAIL` configured in `.env`.
+- 🗂 **Management** — platform statistics, admin activity log, force a new passcode now, send an SMTP test e-mail, shortcut to the full admin console (`/admin`).
+
+All requests are recorded in the `request_log` table (7-day retention, max 50k rows).
+During development without SMTP, set `HACKER_ADMIN_DEV_PASSCODE` in `.env` (ignored in production) and watch the server log for issued codes.
+
+---
+
+## 8. Documentation Directory
 
 - [Architecture & Domain Model](docs/ARCHITECTURE.md)
 - [REST API v1 Specification](docs/API.md)

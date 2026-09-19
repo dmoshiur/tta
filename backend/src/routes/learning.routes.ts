@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { all, insert, one, run, count } from '../db/index.ts';
 import { badRequest, forbidden, notFound } from '../lib/errors.ts';
 import { like, ok, pagination, paged, parse, route } from '../lib/http.ts';
-import { fromJson, newId, percentage } from '../lib/util.ts';
+import { fromJson, newId, percentage, fromArray } from '../lib/util.ts';
 import { sanitizePlainText } from '../lib/sanitize.ts';
 import { authenticate, optionalAuth } from '../middleware/auth.ts';
 import { SECTIONS } from '../db/taxonomy.ts';
@@ -37,7 +37,7 @@ function publicCourse(row: Record<string, any>) {
     language: row.language,
     duration_minutes: Number(row.duration_minutes ?? 0),
     thumbnail_url: row.thumbnail_url ?? null,
-    tags: row.tags ?? [],
+    tags: fromArray(row.tags),
     is_featured: Boolean(row.is_featured),
     status: row.status,
     views: Number(row.views ?? 0),
@@ -263,7 +263,7 @@ learningRoutes.get(
           .map((lesson) => ({ ...lesson, completed: completedIds.has(lesson.id) })),
       })),
       quizzes,
-      related: related.map((row) => ({ ...row, tags: row.tags ?? [], lesson_count: relatedCounts.get(row.id) ?? 0 })),
+      related: related.map((row) => ({ ...row, tags: fromArray(row.tags), lesson_count: relatedCounts.get(row.id) ?? 0 })),
       enrollment: enrollment
         ? {
             enrolled: true,

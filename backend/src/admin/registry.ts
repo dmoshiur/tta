@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { all, one, run } from '../db/index.ts';
 import { ApiError, conflict, notFound } from '../lib/errors.ts';
-import { json, ensureSlug, fromJson } from '../lib/util.ts';
+import { json, ensureSlug, fromJson, fromArray } from '../lib/util.ts';
 import { sanitizePlainText, sanitizeRichText } from '../lib/sanitize.ts';
 import { SECTIONS } from '../db/taxonomy.ts';
 
@@ -104,8 +104,50 @@ export async function assertUniqueSlug(table: string, slug: string, ignoreId?: s
   if (existing && existing.id !== ignoreId) throw conflict(`The slug "${slug}" is already used by another record.`, 'SLUG_EXISTS');
 }
 
+/** Accepts an object or JSON text (SQLite rows) and returns a plain object. */
+function parseJsonObject(value: unknown): Record<string, unknown> {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value as Record<string, unknown>;
+  if (typeof value === 'string') {
+    const text = value.trim();
+    if (text.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed as Record<string, unknown>;
+      } catch {
+        /* not JSON — fall through */
+      }
+    }
+  }
+  return {};
+}
+
+/**
+ * Accepts a value that may arrive as a real array (in-memory engines / UI
+ * payloads) or as JSON text (SQLite/Turso rows) and returns an array either
+ * way. Non-array, non-JSON input yields [].
+ */
+function asArray(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    const text = value.trim();
+    if (text.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(text);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {
+        /* not JSON — fall through */
+      }
+    }
+  }
+  return [];
+}
+
 function normalizeTags(value: unknown): string[] {
   if (Array.isArray(value)) return value.map((item) => sanitizePlainText(String(item))).filter(Boolean).slice(0, 20);
+  const jsonish = asArray(value);
+  if (value !== undefined && value !== null && value !== '' && jsonish.length && typeof value === 'string' && String(value).trim().startsWith('[')) {
+    return jsonish.map((item) => sanitizePlainText(String(item))).filter(Boolean).slice(0, 20);
+  }
   return String(value ?? '')
     .split(',')
     .map((item) => sanitizePlainText(item))
@@ -114,7 +156,7 @@ function normalizeTags(value: unknown): string[] {
 }
 
 function normalizeSources(value: unknown): { title: string; url: string }[] {
-  const list = Array.isArray(value) ? value : [];
+  const list = asArray(value);
   return list
     .map((item: any) => ({ title: sanitizePlainText(String(item?.title ?? '')), url: String(item?.url ?? '').trim() }))
     .filter((item) => item.title && /^https?:\/\//.test(item.url))
@@ -208,7 +250,7 @@ export const resources: Resource[] = [
       const seo = fromJson<Record<string, string>>(row.seo, {});
       return {
         ...row,
-        tags: row.tags ?? [],
+        tags: fromArray(row.tags),
         seo_title: seo.title ?? '',
         seo_description: seo.description ?? '',
         category_name: row.category_name ?? null,
@@ -537,14 +579,16 @@ export const resources: Resource[] = [
       status: z.enum(['DRAFT', 'PUBLISHED']).optional(),
     }),
     toColumns(input) {
-      const options = Array.isArray(input.options)
-        ? input.options.map((option: string) => sanitizePlainText(String(option))).filter(Boolean)
+      const optionsFromJson = asArray(input.options);
+      const options = optionsFromJson.length
+        ? optionsFromJson.map((option: unknown) => sanitizePlainText(String(option))).filter(Boolean)
         : String(input.options ?? '')
             .split('\n')
             .map((option) => sanitizePlainText(option))
             .filter(Boolean);
       if (options.length < 2) throw new ApiError(400, 'VALIDATION_ERROR', 'A question needs at least two options.');
-      const correct = Array.isArray(input.correct) ? input.correct.map(Number) : [Number(input.correct)];
+      const correctRaw = Array.isArray(input.correct) ? input.correct : asArray(input.correct).length ? asArray(input.correct) : [input.correct];
+      const correct = correctRaw.map(Number);
       for (const index of correct) {
         if (!Number.isFinite(index) || index < 0 || index >= options.length) {
           throw new ApiError(400, 'VALIDATION_ERROR', `Correct answer index ${index} is outside the option list (0–${options.length - 1}).`);
@@ -568,7 +612,7 @@ export const resources: Resource[] = [
         updated_at: new Date().toISOString(),
       };
     },
-    fromRow: (row) => ({ ...row, options: fromJson(row.options, []), correct: fromJson(row.correct, 0), tags: row.tags ?? [] }),
+    fromRow: (row) => ({ ...row, options: fromJson(row.options, []), correct: fromJson(row.correct, 0), tags: fromArray(row.tags) }),
     async afterSave(row, action, actor) {
       if (action === 'create' && row.quiz_id) {
         await run('INSERT INTO quiz_questions(quiz_id, question_id, position) VALUES($1,$2,$3) ON CONFLICT (quiz_id, question_id) DO NOTHING', [
@@ -653,7 +697,7 @@ export const resources: Resource[] = [
         author_id: input.author_id || null,
         tags: normalizeTags(input.tags),
         sources: json(normalizeSources(input.sources)),
-        meta: json(input.meta && typeof input.meta === 'object' ? input.meta : {}),
+        meta: json(parseJsonObject(input.meta)),
         reading_minutes: Math.max(1, Math.round(body.replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length / 220)),
         status: input.status ?? 'DRAFT',
         is_featured: Boolean(input.is_featured),
@@ -666,7 +710,7 @@ export const resources: Resource[] = [
       const seo = fromJson<Record<string, string>>(row.seo, {});
       return {
         ...row,
-        tags: row.tags ?? [],
+        tags: fromArray(row.tags),
         sources: fromJson(row.sources, []),
         meta: fromJson(row.meta, {}),
         seo_title: seo.title ?? '',
@@ -761,11 +805,11 @@ export const resources: Resource[] = [
       seo_description: z.string().max(400).optional(),
     }),
     toColumns(input) {
-      const keyIdeas = Array.isArray(input.key_ideas)
-        ? input.key_ideas.map((idea: any) => ({ title: sanitizePlainText(String(idea?.title ?? '')), detail: sanitizePlainText(String(idea?.detail ?? '')) })).filter((idea: any) => idea.title)
-        : [];
-      const lessons = Array.isArray(input.lessons)
-        ? input.lessons.map((lesson: unknown) => sanitizePlainText(String(lesson))).filter(Boolean)
+      const keyIdeas = asArray(input.key_ideas)
+        .map((idea: any) => ({ title: sanitizePlainText(String(idea?.title ?? '')), detail: sanitizePlainText(String(idea?.detail ?? '')) })).filter((idea: any) => idea.title);
+      const lessonsList = asArray(input.lessons);
+      const lessons = lessonsList.length
+        ? lessonsList.map((lesson: unknown) => sanitizePlainText(String(lesson))).filter(Boolean)
         : String(input.lessons ?? '')
             .split('\n')
             .map((lesson) => sanitizePlainText(lesson))
@@ -786,7 +830,7 @@ export const resources: Resource[] = [
         applications: sanitizeRichText(input.applications ?? ''),
         review: sanitizeRichText(input.review ?? ''),
         recommendation: sanitizeRichText(input.recommendation ?? ''),
-        related: json(Array.isArray(input.related) ? input.related : []),
+        related: json(asArray(input.related)),
         sources: json(normalizeSources(input.sources)),
         tags: normalizeTags(input.tags),
         status: input.status ?? 'DRAFT',
@@ -803,7 +847,7 @@ export const resources: Resource[] = [
         lessons: fromJson(row.lessons, []),
         related: fromJson(row.related, []),
         sources: fromJson(row.sources, []),
-        tags: row.tags ?? [],
+        tags: fromArray(row.tags),
         seo_title: seo.title ?? '',
         seo_description: seo.description ?? '',
       };

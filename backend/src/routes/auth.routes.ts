@@ -105,7 +105,7 @@ authRoutes.post(
     if (!row || !(await verifyPassword(data.password, row.password_hash))) {
       throw unauthorized('Email or password is incorrect.');
     }
-    if (row.is_active === false) throw forbidden('This account has been suspended. Contact the administrator.');
+    if (!row.is_active) throw forbidden('This account has been suspended. Contact the administrator.');
 
     await run('UPDATE users SET last_login_at = NOW() WHERE id = $1', [row.id]);
     invalidateUserCache(row.id);

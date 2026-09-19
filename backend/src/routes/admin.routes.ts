@@ -188,11 +188,14 @@ adminRoutes.get(
       }
     }
 
+    // Filter/order clauses reference main-table columns unqualified; wrapping
+    // the (possibly join-heavy) registry select in a derived table keeps every
+    // reference unambiguous on SQLite/Turso.
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
     const totalRow = await one<{ total: number }>(`SELECT COUNT(*)::int AS total FROM ${r.table} ${whereSql}`, params);
 
     const rows = await all<Record<string, any>>(
-      `${r.select} ${whereSql} ORDER BY ${r.orderBy} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      `SELECT base.* FROM (${r.select}) AS base ${whereSql} ORDER BY ${r.orderBy} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
       [...params, page.limit, page.offset],
     );
 
@@ -204,7 +207,7 @@ adminRoutes.get(
   '/r/:resource/:id',
   route(async (req, res) => {
     const r = getResource(param(req.params.resource));
-    const row = await one<Record<string, any>>(`${r.select} WHERE ${r.table}.id = $1`, [param(req.params.id)]);
+    const row = await one<Record<string, any>>(`SELECT * FROM (${r.select}) AS base WHERE base.id = $1`, [param(req.params.id)]);
     if (!row) throw notFound(`${r.singular} not found.`);
     ok(res, r.fromRow(row));
   }),
@@ -232,7 +235,7 @@ adminRoutes.post(
     if ('slug' in data) columns.slug = data.slug;
 
     await insert(r.table, columns);
-    const saved = await one<Record<string, any>>(`${r.select} WHERE ${r.table}.id = $1`, [id]);
+    const saved = await one<Record<string, any>>(`SELECT * FROM (${r.select}) AS base WHERE base.id = $1`, [id]);
 
     if (r.afterSave) await r.afterSave(saved!, 'create', { id: req.user.id, name: req.user.name });
     await logActivity({
@@ -275,7 +278,7 @@ adminRoutes.patch(
     const params = [...pairs.map(([, v]) => v), targetId];
 
     await run(`UPDATE ${r.table} SET ${setClause} WHERE id = $${params.length}`, params);
-    const updated = await one<Record<string, any>>(`${r.select} WHERE ${r.table}.id = $1`, [targetId]);
+    const updated = await one<Record<string, any>>(`SELECT * FROM (${r.select}) AS base WHERE base.id = $1`, [targetId]);
 
     if (r.afterSave) await r.afterSave(updated!, 'update', { id: req.user.id, name: req.user.name });
     await logActivity({

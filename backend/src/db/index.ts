@@ -1,46 +1,213 @@
-import pg from 'pg';
-import { config } from '../config.ts';
+import fs from 'node:fs';
+import path from 'node:path';
+import { createClient, type Client } from '@libsql/client';
+import { config, repoRoot } from '../config.ts';
 import { logger } from '../lib/logger.ts';
 import { notFound } from '../lib/errors.ts';
 
 export type Row = Record<string, any>;
 
-interface Queryable {
-  query(sql: string, params?: unknown[]): Promise<{ rows: Row[]; rowCount: number | null }>;
+/**
+ * Database layer — Turso (libsql/SQLite) in production, local SQLite files in
+ * development, in-memory SQLite in tests.
+ *
+ * `DATABASE_URL` accepts:
+ *   • libsql://user:pass@db.turso.io          (Turso, username + password)
+ *   • libsql://...?authToken=<token>          (Turso, auth token)
+ *   • file:/absolute/path/to/db.sqlite        (any local file)
+ *   • (unset)                                  → file in ./data (dev) or :memory: (test)
+ *
+ * The application was originally written against PostgreSQL. To keep the query
+ * catalogue portable, every statement is passed through `toSqlite()` which
+ * rewrites the small number of PostgreSQL-isms the codebase uses
+ * ($N parameters, NOW(), ILIKE, ::int casts, CONCAT()) into SQLite syntax.
+ */
+
+let client: Client | null = null;
+/** True when the in-memory SQLite database is in use (tests). */
+export let inMemory = false;
+/** True when a real file-backed SQLite database is in use (development). */
+export let fileBacked = false;
+
+function resolveDatabaseUrl(): { url: string; mode: 'turso' | 'file' | 'memory' } {
+  const url = config.databaseUrl;
+  if (url) {
+    if (url.startsWith('libsql://')) return { url, mode: 'turso' };
+    return { url, mode: 'file' };
+  }
+  if (config.isTest) return { url: 'file::memory:', mode: 'memory' };
+  const dir = path.join(repoRoot, 'data');
+  fs.mkdirSync(dir, { recursive: true });
+  return { url: `file:${path.join(dir, 'thinktank.sqlite')}`, mode: 'file' };
 }
 
-let pool: Queryable | null = null;
-/** True when no DATABASE_URL was supplied and the disposable in-memory database is in use. */
-export let inMemory = false;
-
 export async function initPool(): Promise<void> {
-  if (pool) return;
-  if (config.databaseUrl) {
-    pool = new pg.Pool({
-      connectionString: config.databaseUrl,
-      ssl: config.isProduction ? { rejectUnauthorized: false } : undefined,
-      max: 10,
-      idleTimeoutMillis: 30_000,
-      connectionTimeoutMillis: 15_000,
-    }) as unknown as Queryable;
-    inMemory = false;
-    logger.info('database: connected to PostgreSQL');
+  if (client) return;
+  const { url, mode } = resolveDatabaseUrl();
+  client = createClient({ url });
+  inMemory = mode === 'memory';
+  fileBacked = mode === 'file';
+
+  if (mode === 'turso') {
+    logger.info('database: connected to Turso (libsql over HTTPS)');
+  } else if (mode === 'memory') {
+    logger.warn('database: using the disposable in-memory SQLite database (data is lost on restart)');
   } else {
-    const { newDb } = await import('pg-mem');
-    const memory = newDb({ autoCreateForeignKeyIndices: true });
-    pool = new (memory.adapters.createPg().Pool)() as Queryable;
-    inMemory = true;
-    logger.warn('database: DATABASE_URL is not set — using the disposable in-memory database (data is lost on restart)');
+    logger.info(`database: using local SQLite file database`);
   }
 }
 
-export function db(): Queryable {
-  if (!pool) throw new Error('Database pool is not initialised. Call initPool() first.');
-  return pool;
+export function db(): Client {
+  if (!client) throw new Error('Database client is not initialised. Call initPool() first.');
+  return client;
+}
+
+// ── PostgreSQL → SQLite statement compatibility ────────────────────────────
+
+/**
+ * Rewrites a PostgreSQL-flavoured statement for SQLite:
+ *   • $N positional parameters → `?` (values repeated where $N is reused)
+ *   • NOW()                     → strftime('%Y-%m-%dT%H:%M:%fZ','now')
+ *   • ILIKE                     → LIKE (case-insensitive for ASCII in SQLite)
+ *   • expr::int / expr::INT     → expr
+ *   • CONCAT(a, b, …)           → a || b || …
+ *
+ * String literals are respected, so `$` or `NOW()` inside quotes is untouched.
+ */
+export function toSqlite(sql: string, params: unknown[]): { sql: string; args: unknown[] } {
+  let out = '';
+  const args: unknown[] = [];
+  let i = 0;
+  let inString = false;
+
+  const push = (s: string) => {
+    out += s;
+  };
+
+  while (i < sql.length) {
+    const ch = sql[i];
+
+    if (inString) {
+      push(ch);
+      i += 1;
+      if (ch === "'" && sql[i] === "'") {
+        // Escaped quote inside a SQLite/PG string literal
+        push("'");
+        i += 1;
+      } else if (ch === "'") {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (ch === "'") {
+      inString = true;
+      push(ch);
+      i += 1;
+      continue;
+    }
+
+    // $N parameter placeholder
+    if (ch === '$' && i + 1 < sql.length && Number.isFinite(Number(sql[i + 1]))) {
+      let n = '';
+      let j = i + 1;
+      while (j < sql.length && Number.isFinite(Number(sql[j]))) {
+        n += sql[j];
+        j += 1;
+      }
+      const index = Number.parseInt(n, 10) - 1;
+      push('?');
+      args.push(index >= 0 && index < params.length ? params[index] : null);
+      i = j;
+      continue;
+    }
+
+    // NOW()
+    const lower = sql.slice(i, i + 4).toUpperCase();
+    if (lower === 'NOW(' && sql[i + 4] === ')') {
+      push("(strftime('%Y-%m-%dT%H:%M:%fZ','now'))");
+      i += 5;
+      continue;
+    }
+
+    // ILIKE
+    if (lower === 'ILIK' && sql[i + 4]?.toUpperCase() === 'E' && !/[A-Z_]/i.test(sql[i + 5] ?? '')) {
+      push('LIKE');
+      i += 5;
+      continue;
+    }
+
+    // ::int cast
+    if (ch === ':' && sql[i + 1] === ':') {
+      const rest = sql.slice(i + 2);
+      const match = /^(int|integer|bigint|smallint)\b/i.exec(rest);
+      if (match) {
+        i += 2 + match[0].length;
+        continue; // cast is a no-op in SQLite
+      }
+      push('::');
+      i += 2;
+      continue;
+    }
+
+    // CONCAT(...) → a || b
+    if (lower === 'CONC' && sql.slice(i, i + 6).toUpperCase() === 'CONCAT' && sql[i + 6] === '(') {
+      let depth = 1;
+      let j = i + 7;
+      let start = j;
+      const parts: string[] = [];
+      let inPartString = false;
+      while (j < sql.length && depth > 0) {
+        const c = sql[j];
+        if (inPartString) {
+          if (c === "'" && sql[j + 1] === "'") j += 1;
+          else if (c === "'") inPartString = false;
+        } else if (c === "'") {
+          inPartString = true;
+        } else if (c === '(') {
+          depth += 1;
+        } else if (c === ')') {
+          depth -= 1;
+          if (depth === 0) break;
+        } else if (c === ',' && depth === 1) {
+          parts.push(sql.slice(start, j));
+          start = j + 1;
+        }
+        j += 1;
+      }
+      parts.push(sql.slice(start, j));
+      push(parts.map((p) => p.trim()).filter(Boolean).join(' || '));
+      i = j + 1;
+      continue;
+    }
+
+    push(ch);
+    i += 1;
+  }
+
+  return { sql: out, args };
+}
+
+/** Normalises a value before binding: arrays/objects become JSON text (SQLite stores them as TEXT). */
+function bindValue(value: unknown): unknown {
+  if (value === undefined) return null;
+  if (value === null) return null;
+  if (typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) return JSON.stringify(value);
+  if (typeof value === 'boolean') return value ? 1 : 0;
+  if (value instanceof Date) return value.toISOString();
+  return value;
+}
+
+async function execute(sql: string, params: unknown[] = []) {
+  const { sql: sqliteSql, args } = toSqlite(sql, params.map(bindValue));
+  return db().execute({ sql: sqliteSql, args: args as any[] });
 }
 
 export async function all<T = Row>(sql: string, params: unknown[] = []): Promise<T[]> {
-  const result = await db().query(sql, params);
+  const result = await execute(sql, params);
   return result.rows as T[];
 }
 
@@ -56,8 +223,8 @@ export async function mustOne<T = Row>(sql: string, params: unknown[] = [], mess
 }
 
 export async function run(sql: string, params: unknown[] = []): Promise<number> {
-  const result = await db().query(sql, params);
-  return result.rowCount ?? result.rows.length ?? 0;
+  const result = await execute(sql, params);
+  return result.rowsAffected;
 }
 
 export async function exists(sql: string, params: unknown[] = []): Promise<boolean> {
@@ -75,7 +242,7 @@ function entries(values: Record<string, unknown>): [string, unknown][] {
   return Object.entries(values).filter(([, v]) => v !== undefined);
 }
 
-/** Builds and runs an INSERT ... RETURNING *. JSONB values must already be stringified with `json()`. */
+/** Builds and runs an INSERT ... RETURNING *. Array/object values are JSON-encoded by the binder. */
 export async function insert(table: string, values: Record<string, unknown>): Promise<Row> {
   const pairs = entries(values);
   if (!pairs.length) throw new Error(`insert(${table}) requires at least one column`);
@@ -110,40 +277,37 @@ export interface Tx {
   run: (sql: string, params?: unknown[]) => Promise<number>;
 }
 
-/**
- * Runs `work` inside a transaction on PostgreSQL. The in-memory development
- * database has no transaction support, so statements simply run in sequence.
- */
+/** Runs `work` inside a transaction. Works on Turso, local files and in-memory SQLite alike. */
 export async function withTransaction<T>(work: (tx: Tx) => Promise<T>): Promise<T> {
-  if (inMemory) return work({ all, one, run });
-  const client = await (pool as unknown as pg.Pool).connect();
+  const tx = await db().transaction('write');
   try {
-    await client.query('BEGIN');
-    const tx: Tx = {
-      all: async <R = Row>(sql: string, params: unknown[] = []): Promise<R[]> =>
-        (await client.query(sql, params as any[])).rows as unknown as R[],
-      one: async <R = Row>(sql: string, params: unknown[] = []): Promise<R | undefined> =>
-        ((await client.query(sql, params as any[])).rows as unknown as R[])[0],
-      run: async (sql: string, params: unknown[] = []): Promise<number> =>
-        (await client.query(sql, params as any[])).rowCount ?? 0,
+    const api: Tx = {
+      all: async <R = Row>(sql: string, params: unknown[] = []): Promise<R[]> => {
+        const { sql: sqliteSql, args } = toSqlite(sql, params.map(bindValue));
+        return (await tx.execute({ sql: sqliteSql, args: args as any[] })).rows as unknown as R[];
+      },
+      one: async <R = Row>(sql: string, params: unknown[] = []): Promise<R | undefined> => {
+        const rows = await api.all<R>(sql, params);
+        return rows[0];
+      },
+      run: async (sql: string, params: unknown[] = []): Promise<number> => {
+        const { sql: sqliteSql, args } = toSqlite(sql, params.map(bindValue));
+        return (await tx.execute({ sql: sqliteSql, args: args as any[] })).rowsAffected;
+      },
     };
-    const result = await work(tx);
-    await client.query('COMMIT');
+    const result = await work(api);
+    await tx.commit();
     return result;
   } catch (error) {
-    try {
-      await client.query('ROLLBACK');
-    } catch {
-      /* connection already broken */
-    }
+    await tx.rollback().catch(() => undefined);
     throw error;
   } finally {
-    client.release();
+    tx.close();
   }
 }
 
 export async function closePool(): Promise<void> {
-  const candidate = pool as unknown as pg.Pool | null;
-  pool = null;
-  if (candidate && typeof candidate.end === 'function') await candidate.end();
+  const candidate = client;
+  client = null;
+  if (candidate && typeof candidate.close === 'function') await candidate.close();
 }

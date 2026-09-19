@@ -94,14 +94,34 @@ export function fromJson<T>(value: unknown, fallback: T): T {
   }
 }
 
-/** Normalises a TEXT[] column (pg-mem returns arrays, PostgreSQL returns arrays too, but stay defensive). */
+/**
+ * Normalises a tag column: SQLite/Turso returns JSON text, in-memory engines
+ * may return real arrays, and very old rows may still hold PostgreSQL "{a,b}"
+ * text. All shapes are accepted.
+ */
 export function fromArray(value: unknown): string[] {
+  if (value === null || value === undefined || value === '') return [];
   if (Array.isArray(value)) return value.map(String);
-  if (typeof value === 'string' && value.startsWith('{')) {
-    return value
-      .slice(1, -1)
+  if (typeof value === 'string') {
+    const text = value.trim();
+    if (text.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(text);
+        return Array.isArray(parsed) ? parsed.map(String) : [];
+      } catch {
+        return [];
+      }
+    }
+    if (text.startsWith('{')) {
+      return text
+        .slice(1, -1)
+        .split(',')
+        .map((x) => x.replace(/^"|"$/g, '').trim())
+        .filter(Boolean);
+    }
+    return text
       .split(',')
-      .map((x) => x.replace(/^"|"$/g, ''))
+      .map((x) => x.trim())
       .filter(Boolean);
   }
   return [];
