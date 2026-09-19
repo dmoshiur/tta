@@ -374,6 +374,38 @@ test('admin console: generic resource CRUD, users and roles', async () => {
   assert.ok(rolesData.data.permissions.length >= 10);
 });
 
+test('account self-deletion cascades user-owned rows (media uploaded_by etc.)', async () => {
+  const reg = await fetch(base + '/api/v1/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'Cascading User', email: 'cascade@example.com', password: 'StrongPassword123' }),
+  });
+  assert.equal(reg.status, 201);
+  const token = ((await reg.json()) as any).data.token;
+
+  // Upload an avatar — inserts a media row with uploaded_by = this user.
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    'base64',
+  );
+  const form = new FormData();
+  form.append('file', new Blob([png], { type: 'image/png' }), 'cascade.png');
+  const avatar = await fetch(base + '/api/v1/users/me/avatar', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  assert.equal(avatar.status, 201);
+
+  // Deleting the account must succeed despite the media row referencing it.
+  const del = await fetch(base + '/api/v1/users/me', {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: 'StrongPassword123' }),
+  });
+  assert.equal(del.status, 200);
+});
+
 test('hackeradmin: passcode login, site switch, traffic and admin views', async () => {
   // Status endpoint is public (login screen data)
   const statusRes = await fetch(base + '/api/v1/hackeradmin/status');
