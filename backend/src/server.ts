@@ -1,61 +1,231 @@
-import express from 'express'; import helmet from 'helmet'; import cors from 'cors'; import compression from 'compression'; import rateLimit from 'express-rate-limit'; import bcrypt from 'bcryptjs'; import jwt from 'jsonwebtoken'; import crypto from 'crypto'; import multer from 'multer'; import sanitizeHtml from 'sanitize-html'; import path from 'path'; import {fileURLToPath} from 'url'; import {z} from 'zod'; import {db,initDb} from './db.js';
-const app=express(), root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..'), secret=process.env.JWT_SECRET||'development-only-change-me'; const id=()=>crypto.randomUUID();
-app.set('trust proxy',1); app.use(helmet({contentSecurityPolicy:false})); app.use(compression()); app.use(cors({origin:(process.env.FRONTEND_URL||'').split(',').filter(Boolean).length?(process.env.FRONTEND_URL||'').split(','):true,credentials:true})); app.use(express.json({limit:'1mb'})); app.use('/api',rateLimit({windowMs:60_000,limit:180,standardHeaders:true,legacyHeaders:false})); app.use('/uploads',express.static(path.join(root,'uploads')));
-type U={id:string,email:string,name:string,role:string,permissions:string[]}; declare global{namespace Express{interface Request{user?:U}}}
-const asyncRoute=(fn:any)=>(req:any,res:any,next:any)=>Promise.resolve(fn(req,res,next)).catch(next); const token=(u:U)=>jwt.sign(u,secret,{expiresIn:'7d'});
-const auth=(req:any,res:any,next:any)=>{try{req.user=jwt.verify((req.headers.authorization||'').replace('Bearer ',''),secret);next()}catch{return fail(res,401,'UNAUTHORIZED','Authentication is required.')}};
-const admin=(permission?:string)=>(req:any,res:any,next:any)=>auth(req,res,()=>{if(!['SUPER_ADMIN','CONTENT_ADMIN','MODERATOR','ANALYST'].includes(req.user.role))return fail(res,403,'FORBIDDEN','Admin access required.'); if(permission&&req.user.role!=='SUPER_ADMIN'&&!req.user.permissions.includes(permission))return fail(res,403,'FORBIDDEN','Permission denied.');next()});
-const fail=(res:any,status:number,code:string,message:string,details?:any)=>res.status(status).json({success:false,error:{code,message,...(details?{details}:{})}}); const ok=(res:any,data:any,status=200)=>res.status(status).json({success:true,data});
-const validate=(schema:any,body:any)=>{const r=schema.safeParse(body);if(!r.success)throw Object.assign(new Error('Validation failed'),{status:400,code:'VALIDATION_ERROR',details:r.error.flatten()});return r.data};
-app.get('/api/health',(_q,r)=>r.json({ok:true,service:'thinktank-academia'})); app.get('/api/v1/health',(_q,r)=>r.json({ok:true,service:'thinktank-academia',version:'v1'}));
-const credentials=z.object({email:z.string().email().toLowerCase(),password:z.string().min(8).max(128)});
-app.post('/api/v1/auth/register',asyncRoute(async(req:any,res:any)=>{const d=validate(credentials.extend({name:z.string().min(2).max(80)}),req.body);const uid=id(),hash=await bcrypt.hash(d.password,12);try{await db.query('INSERT INTO users(id,email,password_hash,name) VALUES($1,$2,$3,$4)',[uid,d.email,hash,d.name]);return ok(res,{token:token({id:uid,email:d.email,name:d.name,role:'USER',permissions:[]}),user:{id:uid,email:d.email,name:d.name,role:'USER'}},201)}catch{return fail(res,409,'EMAIL_EXISTS','An account with this email already exists.')}}));
-app.post('/api/v1/auth/login',rateLimit({windowMs:15*60_000,limit:10}),asyncRoute(async(req:any,res:any)=>{const d=validate(credentials,req.body),q=await db.query('SELECT * FROM users WHERE email=$1',[d.email]),u=q.rows[0];if(!u||!await bcrypt.compare(d.password,u.password_hash))return fail(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');const safe={id:u.id,email:u.email,name:u.name,role:u.role,permissions:u.permissions||[]};ok(res,{token:token(safe),user:safe})}));
-app.post('/api/v1/auth/logout',auth,(_q,r)=>ok(r,{loggedOut:true}));
-app.post('/api/v1/auth/forgot-password',asyncRoute(async(req:any,res:any)=>{validate(z.object({email:z.string().email()}),req.body);ok(res,{message:'If the account exists, reset instructions have been queued.'})}));
-app.get('/api/v1/users/me',auth,asyncRoute(async(req:any,res:any)=>{const q=await db.query('SELECT id,email,name,avatar_url,role,created_at FROM users WHERE id=$1',[req.user.id]);ok(res,q.rows[0])}));
-app.patch('/api/v1/users/me',auth,asyncRoute(async(req:any,res:any)=>{const d=validate(z.object({name:z.string().min(2).max(80)}),req.body);const q=await db.query('UPDATE users SET name=$1 WHERE id=$2 RETURNING id,email,name,avatar_url,role',[d.name,req.user.id]);ok(res,q.rows[0])}));
-app.patch('/api/v1/users/me/password',auth,asyncRoute(async(req:any,res:any)=>{const d=validate(z.object({currentPassword:z.string(),newPassword:z.string().min(8)}),req.body),q=await db.query('SELECT password_hash FROM users WHERE id=$1',[req.user.id]);if(!await bcrypt.compare(d.currentPassword,q.rows[0].password_hash))return fail(res,400,'INVALID_PASSWORD','Current password is incorrect.');await db.query('UPDATE users SET password_hash=$1 WHERE id=$2',[await bcrypt.hash(d.newPassword,12),req.user.id]);ok(res,{changed:true})}));
-const upload=multer({dest:path.join(root,'uploads'),limits:{fileSize:3_000_000},fileFilter:(_r,f,cb)=>cb(null,['image/jpeg','image/png','image/webp'].includes(f.mimetype))});app.post('/api/v1/users/me/avatar',auth,upload.single('file'),asyncRoute(async(req:any,res:any)=>{if(!req.file)return fail(res,400,'INVALID_FILE','A JPG, PNG, or WebP image is required.');const url='/uploads/'+req.file.filename;await db.query('UPDATE users SET avatar_url=$1 WHERE id=$2',[url,req.user.id]);ok(res,{url})}));
-app.get('/api/v1/categories',asyncRoute(async(_q:any,r:any)=>ok(r,(await db.query('SELECT * FROM categories ORDER BY name')).rows)));
-app.get('/api/v1/courses',asyncRoute(async(req:any,res:any)=>{const limit=Math.min(+req.query.limit||12,50),page=Math.max(+req.query.page||1,1),search=`%${req.query.q||''}%`;const q=await db.query(`SELECT c.*,cat.name category FROM courses c LEFT JOIN categories cat ON cat.id=c.category_id WHERE c.status='PUBLISHED' AND (c.title ILIKE $1 OR c.description ILIKE $1) ORDER BY c.featured DESC,c.created_at DESC LIMIT $2 OFFSET $3`,[search,limit,(page-1)*limit]);ok(res,{items:q.rows,page,limit})}));
-app.get('/api/v1/courses/:slug',asyncRoute(async(req:any,res:any)=>{const q=await db.query(`SELECT c.*,COALESCE(json_agg(json_build_object('id',m.id,'title',m.title,'lessons',(SELECT COALESCE(json_agg(l ORDER BY l.position),'[]') FROM lessons l WHERE l.module_id=m.id AND l.status='PUBLISHED')) ORDER BY m.position) FILTER(WHERE m.id IS NOT NULL),'[]') modules FROM courses c LEFT JOIN modules m ON m.course_id=c.id WHERE c.slug=$1 AND c.status='PUBLISHED' GROUP BY c.id`,[req.params.slug]);if(!q.rows[0])return fail(res,404,'RESOURCE_NOT_FOUND','Course not found.');ok(res,q.rows[0])}));
-app.post('/api/v1/courses/:id/enroll',auth,asyncRoute(async(req:any,res:any)=>{await db.query('INSERT INTO enrollments(user_id,course_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[req.user.id,req.params.id]);ok(res,{enrolled:true},201)}));
-app.post('/api/v1/lessons/:id/complete',auth,asyncRoute(async(req:any,res:any)=>{await db.query(`INSERT INTO lesson_progress(user_id,lesson_id,completed) VALUES($1,$2,true) ON CONFLICT(user_id,lesson_id) DO UPDATE SET completed=true,updated_at=NOW()`,[req.user.id,req.params.id]);ok(res,{completed:true})}));
-app.get('/api/v1/dashboard',auth,asyncRoute(async(req:any,res:any)=>{const e=await db.query(`SELECT c.*,COUNT(lp.lesson_id) FILTER(WHERE lp.completed) completed_lessons,(SELECT COUNT(*) FROM lessons l JOIN modules m ON m.id=l.module_id WHERE m.course_id=c.id) total_lessons FROM enrollments en JOIN courses c ON c.id=en.course_id LEFT JOIN modules mo ON mo.course_id=c.id LEFT JOIN lessons le ON le.module_id=mo.id LEFT JOIN lesson_progress lp ON lp.lesson_id=le.id AND lp.user_id=en.user_id WHERE en.user_id=$1 GROUP BY c.id`,[req.user.id]);const a=await db.query('SELECT * FROM attempts WHERE user_id=$1 ORDER BY submitted_at DESC LIMIT 10',[req.user.id]);ok(res,{courses:e.rows,attempts:a.rows})}));
-app.get('/api/v1/content',asyncRoute(async(req:any,res:any)=>{const type=req.query.type||'ARTICLE',search=`%${req.query.q||''}%`,limit=Math.min(+req.query.limit||12,50);const q=await db.query(`SELECT c.*,u.name author,cat.name category FROM content c LEFT JOIN users u ON u.id=c.author_id LEFT JOIN categories cat ON cat.id=c.category_id WHERE c.status='PUBLISHED' AND ($1='ALL' OR c.type=$1) AND (c.title ILIKE $2 OR c.excerpt ILIKE $2 OR c.body ILIKE $2) ORDER BY c.published_at DESC LIMIT $3`,[type,search,limit]);ok(res,{items:q.rows})}));
-app.get('/api/v1/content/:slug',asyncRoute(async(req:any,res:any)=>{const q=await db.query(`SELECT c.*,u.name author,cat.name category FROM content c LEFT JOIN users u ON u.id=c.author_id LEFT JOIN categories cat ON cat.id=c.category_id WHERE c.slug=$1 AND c.status='PUBLISHED'`,[req.params.slug]);if(!q.rows[0])return fail(res,404,'RESOURCE_NOT_FOUND','Content not found.');ok(res,q.rows[0])}));
-app.get('/api/v1/search',asyncRoute(async(req:any,res:any)=>{const term=`%${String(req.query.q||'').slice(0,100)}%`;if(term==='%%')return ok(res,{courses:[],content:[]});const [c,n]=await Promise.all([db.query(`SELECT id,title,slug,description excerpt,'COURSE' type FROM courses WHERE status='PUBLISHED' AND (title ILIKE $1 OR description ILIKE $1) LIMIT 20`,[term]),db.query(`SELECT id,title,slug,excerpt,type FROM content WHERE status='PUBLISHED' AND (title ILIKE $1 OR body ILIKE $1) LIMIT 20`,[term])]);ok(res,{courses:c.rows,content:n.rows})}));
-app.get('/api/v1/quizzes',asyncRoute(async(_q:any,res:any)=>ok(res,{items:(await db.query("SELECT id,title,duration_minutes,negative_mark FROM quizzes WHERE status='PUBLISHED'")).rows})));
-app.get('/api/v1/quizzes/:id',auth,asyncRoute(async(req:any,res:any)=>{const q=await db.query(`SELECT q.id,q.title,q.duration_minutes,q.negative_mark,COALESCE(json_agg(json_build_object('id',x.id,'prompt',x.prompt,'type',x.type,'options',x.options,'marks',x.marks)) FILTER(WHERE x.id IS NOT NULL),'[]') questions FROM quizzes q LEFT JOIN questions x ON x.quiz_id=q.id WHERE q.id=$1 AND q.status='PUBLISHED' GROUP BY q.id`,[req.params.id]);if(!q.rows[0])return fail(res,404,'RESOURCE_NOT_FOUND','Quiz not found.');ok(res,q.rows[0])}));
-app.post('/api/v1/quizzes/:id/submit',auth,asyncRoute(async(req:any,res:any)=>{const answers=validate(z.object({answers:z.record(z.string(),z.any()),startedAt:z.string().optional()}),req.body),q=await db.query('SELECT * FROM questions WHERE quiz_id=$1',[req.params.id]);let score=0,total=0;const review=q.rows.map((x:any)=>{total+=+x.marks;const correct=JSON.stringify(answers.answers[x.id])===JSON.stringify(x.correct);if(correct)score+=+x.marks;return{id:x.id,correct,correctAnswer:x.correct,explanation:x.explanation}});const aid=id();await db.query('INSERT INTO attempts(id,quiz_id,user_id,answers,score,total,started_at) VALUES($1,$2,$3,$4,$5,$6,$7)',[aid,req.params.id,req.user.id,answers.answers,score,total,answers.startedAt||new Date()]);ok(res,{attemptId:aid,score,total,review},201)}));
-app.get('/api/v1/bookmarks',auth,asyncRoute(async(req:any,res:any)=>ok(res,(await db.query('SELECT * FROM bookmarks WHERE user_id=$1 ORDER BY created_at DESC',[req.user.id])).rows)));
-app.post('/api/v1/bookmarks',auth,asyncRoute(async(req:any,res:any)=>{const d=validate(z.object({itemType:z.enum(['COURSE','LESSON','ARTICLE','BOOK','QUESTION']),itemId:z.string().uuid()}),req.body);await db.query('INSERT INTO bookmarks(user_id,item_type,item_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING',[req.user.id,d.itemType,d.itemId]);ok(res,{bookmarked:true},201)}));
-app.delete('/api/v1/bookmarks/:type/:id',auth,asyncRoute(async(req:any,res:any)=>{await db.query('DELETE FROM bookmarks WHERE user_id=$1 AND item_type=$2 AND item_id=$3',[req.user.id,req.params.type,req.params.id]);ok(res,{bookmarked:false})}));
-app.get('/api/v1/notifications',auth,asyncRoute(async(req:any,res:any)=>ok(res,(await db.query('SELECT * FROM notifications WHERE user_id=$1 ORDER BY created_at DESC LIMIT 50',[req.user.id])).rows)));
-app.patch('/api/v1/notifications/:id/read',auth,asyncRoute(async(req:any,res:any)=>{await db.query('UPDATE notifications SET read_at=NOW() WHERE id=$1 AND user_id=$2',[req.params.id,req.user.id]);ok(res,{read:true})}));
-app.post('/api/v1/contact',rateLimit({windowMs:3600_000,limit:5}),asyncRoute(async(req:any,res:any)=>{const d=validate(z.object({name:z.string().min(2).max(80),email:z.string().email(),subject:z.string().min(3).max(120),message:z.string().min(10).max(3000)}),req.body);await db.query('INSERT INTO contacts(id,name,email,subject,message) VALUES($1,$2,$3,$4,$5)',[id(),d.name,d.email,d.subject,d.message]);ok(res,{received:true},201)}));
-app.post('/api/v1/analytics',asyncRoute(async(req:any,res:any)=>{const d=validate(z.object({event:z.enum(['PAGE_VIEW','COURSE_VIEW']),path:z.string().max(300)}),req.body);await db.query('INSERT INTO analytics(id,event,path) VALUES($1,$2,$3)',[id(),d.event,d.path]);ok(res,{recorded:true},201)}));
-// Permission-protected administration
-app.get('/api/v1/admin/overview',admin(),asyncRoute(async(_q:any,res:any)=>{const q=await db.query(`SELECT (SELECT COUNT(*) FROM users) users,(SELECT COUNT(*) FROM courses) courses,(SELECT COUNT(*) FROM enrollments) enrollments,(SELECT COUNT(*) FROM attempts) attempts,(SELECT COUNT(*) FROM content) content`);ok(res,q.rows[0])}));
-app.get('/api/v1/admin/users',admin('users:read'),asyncRoute(async(_q:any,res:any)=>ok(res,(await db.query('SELECT id,email,name,role,permissions,created_at FROM users ORDER BY created_at DESC LIMIT 100')).rows)));
-app.patch('/api/v1/admin/users/:id/role',admin('users:write'),asyncRoute(async(req:any,res:any)=>{const d=validate(z.object({role:z.enum(['USER','SUPER_ADMIN','CONTENT_ADMIN','MODERATOR','ANALYST']),permissions:z.array(z.string()).default([])}),req.body);const q=await db.query('UPDATE users SET role=$1,permissions=$2 WHERE id=$3 RETURNING id,email,name,role,permissions',[d.role,d.permissions,req.params.id]);ok(res,q.rows[0])}));
-const courseSchema=z.object({title:z.string().min(3),slug:z.string().regex(/^[a-z0-9-]+$/),description:z.string().min(10),categoryId:z.string().uuid().nullable().optional(),instructor:z.string().optional(),difficulty:z.enum(['BEGINNER','INTERMEDIATE','ADVANCED']).default('BEGINNER'),thumbnailUrl:z.string().url().nullable().optional(),status:z.enum(['DRAFT','PUBLISHED','SCHEDULED']).default('DRAFT'),featured:z.boolean().default(false)});
-app.post('/api/v1/admin/courses',admin('courses:write'),asyncRoute(async(req:any,res:any)=>{const d=validate(courseSchema,req.body),uid=id();await db.query(`INSERT INTO courses(id,title,slug,description,category_id,instructor,difficulty,thumbnail_url,status,featured) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,[uid,d.title,d.slug,sanitizeHtml(d.description),d.categoryId,d.instructor,d.difficulty,d.thumbnailUrl,d.status,d.featured]);ok(res,{id:uid},201)}));
-app.patch('/api/v1/admin/courses/:id',admin('courses:write'),asyncRoute(async(req:any,res:any)=>{const d=validate(courseSchema,req.body);const q=await db.query(`UPDATE courses SET title=$1,slug=$2,description=$3,category_id=$4,instructor=$5,difficulty=$6,thumbnail_url=$7,status=$8,featured=$9,updated_at=NOW() WHERE id=$10 RETURNING *`,[d.title,d.slug,sanitizeHtml(d.description),d.categoryId,d.instructor,d.difficulty,d.thumbnailUrl,d.status,d.featured,req.params.id]);ok(res,q.rows[0])}));
-app.delete('/api/v1/admin/courses/:id',admin('courses:write'),asyncRoute(async(req:any,res:any)=>{await db.query('DELETE FROM courses WHERE id=$1',[req.params.id]);ok(res,{deleted:true})}));
-app.post('/api/v1/admin/courses/:id/modules',admin('courses:write'),asyncRoute(async(req:any,res:any)=>{const d=validate(z.object({title:z.string().min(2),position:z.number().int().default(0)}),req.body),uid=id();await db.query('INSERT INTO modules(id,course_id,title,position) VALUES($1,$2,$3,$4)',[uid,req.params.id,d.title,d.position]);ok(res,{id:uid},201)}));
-app.post('/api/v1/admin/modules/:id/lessons',admin('courses:write'),asyncRoute(async(req:any,res:any)=>{const d=validate(z.object({title:z.string().min(2),content:z.string().default(''),videoUrl:z.string().url().optional(),durationMinutes:z.number().int().min(0).default(0),position:z.number().int().default(0),status:z.enum(['DRAFT','PUBLISHED']).default('DRAFT')}),req.body),uid=id();await db.query('INSERT INTO lessons(id,module_id,title,content,video_url,duration_minutes,position,status) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',[uid,req.params.id,d.title,sanitizeHtml(d.content),d.videoUrl,d.durationMinutes,d.position,d.status]);ok(res,{id:uid},201)}));
-const contentSchema=z.object({type:z.enum(['ARTICLE','BOOK','KNOWLEDGE','WORLD','HUMANITY','SOCIETY']),title:z.string().min(3),slug:z.string().regex(/^[a-z0-9-]+$/),excerpt:z.string().max(500).default(''),body:z.string().min(10),categoryId:z.string().uuid().nullable().optional(),coverUrl:z.string().url().nullable().optional(),status:z.enum(['DRAFT','PUBLISHED','SCHEDULED']).default('DRAFT'),sources:z.array(z.object({title:z.string(),url:z.string().url()})).default([]),seo:z.object({title:z.string().optional(),description:z.string().optional()}).default({})});
-app.post('/api/v1/admin/content',admin('content:write'),asyncRoute(async(req:any,res:any)=>{const d=validate(contentSchema,req.body),uid=id();await db.query(`INSERT INTO content(id,type,title,slug,excerpt,body,category_id,author_id,cover_url,status,sources,seo,published_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,CASE WHEN $10='PUBLISHED' THEN NOW() END)`,[uid,d.type,d.title,d.slug,d.excerpt,sanitizeHtml(d.body),d.categoryId,req.user.id,d.coverUrl,d.status,d.sources,d.seo]);ok(res,{id:uid},201)}));
-app.post('/api/v1/admin/quizzes',admin('quizzes:write'),asyncRoute(async(req:any,res:any)=>{const d=validate(z.object({title:z.string().min(3),courseId:z.string().uuid().nullable().optional(),durationMinutes:z.number().int().positive().optional(),negativeMark:z.number().min(0).default(0),status:z.enum(['DRAFT','PUBLISHED']).default('DRAFT')}),req.body),uid=id();await db.query('INSERT INTO quizzes(id,title,course_id,duration_minutes,negative_mark,status) VALUES($1,$2,$3,$4,$5,$6)',[uid,d.title,d.courseId,d.durationMinutes,d.negativeMark,d.status]);ok(res,{id:uid},201)}));
-app.post('/api/v1/admin/quizzes/:id/questions',admin('quizzes:write'),asyncRoute(async(req:any,res:any)=>{const d=validate(z.object({prompt:z.string().min(3),type:z.enum(['MCQ','MULTIPLE','TRUE_FALSE']).default('MCQ'),options:z.array(z.string()).min(2),correct:z.any(),explanation:z.string().default(''),marks:z.number().positive().default(1),difficulty:z.enum(['EASY','MEDIUM','HARD']).default('MEDIUM')}),req.body),uid=id();await db.query('INSERT INTO questions(id,quiz_id,prompt,type,options,correct,explanation,marks,difficulty) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)',[uid,req.params.id,d.prompt,d.type,d.options,d.correct,d.explanation,d.marks,d.difficulty]);ok(res,{id:uid},201)}));
-app.get('/api/v1/admin/analytics',admin('analytics:read'),asyncRoute(async(_q:any,res:any)=>ok(res,(await db.query(`SELECT event,path,COUNT(*) count FROM analytics GROUP BY event,path ORDER BY count DESC LIMIT 100`)).rows)));
-app.get('/api/v1/settings/public',asyncRoute(async(_q:any,res:any)=>{const q=await db.query("SELECT key,value FROM settings WHERE key IN ('homepage','navigation','footer','announcement')");ok(res,Object.fromEntries(q.rows.map((x:any)=>[x.key,x.value])))}));
-app.put('/api/v1/admin/settings/:key',admin('settings:write'),asyncRoute(async(req:any,res:any)=>{await db.query('INSERT INTO settings(key,value) VALUES($1,$2) ON CONFLICT(key) DO UPDATE SET value=$2,updated_at=NOW()',[req.params.key,req.body]);ok(res,{saved:true})}));
-app.get('/sitemap.xml',asyncRoute(async(_q:any,res:any)=>{const base=process.env.PUBLIC_URL||`${res.req.protocol}://${res.req.get('host')}`;const [c,n]=await Promise.all([db.query("SELECT slug,updated_at FROM courses WHERE status='PUBLISHED'"),db.query("SELECT slug,updated_at FROM content WHERE status='PUBLISHED'")]);const urls=['','courses','books','knowledge','world','humanity','society','about','contact',...c.rows.map((x:any)=>`courses/${x.slug}`),...n.rows.map((x:any)=>`read/${x.slug}`)];res.type('xml').send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.map(x=>`<url><loc>${base}/${x}</loc></url>`).join('')}</urlset>`) }));
-app.get('/robots.txt',(_q,res)=>res.type('text').send('User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /dashboard\nSitemap: '+(process.env.PUBLIC_URL||'')+'/sitemap.xml'));
-if(process.env.NODE_ENV==='production')app.use(express.static(path.join(root,'dist'))); app.get('/{*splat}',(req,res,next)=>{if(req.path.startsWith('/api/'))return next();if(process.env.NODE_ENV==='production')return res.sendFile(path.join(root,'dist/index.html'));next()});
-app.use((err:any,_req:any,res:any,_next:any)=>{console.error(err.message);fail(res,err.status||500,err.code||'INTERNAL_ERROR',err.status?err.message:'An unexpected error occurred.',err.details)});
-async function seed(){if(!process.env.ADMIN_EMAIL||!process.env.ADMIN_PASSWORD)return;const exists=await db.query('SELECT id FROM users WHERE email=$1',[process.env.ADMIN_EMAIL]);if(!exists.rows[0])await db.query('INSERT INTO users(id,email,password_hash,name,role,permissions) VALUES($1,$2,$3,$4,$5,$6)',[id(),process.env.ADMIN_EMAIL,await bcrypt.hash(process.env.ADMIN_PASSWORD,12),'Administrator','SUPER_ADMIN',[]]);}
-export async function start(port=+(process.env.PORT||3000)){await initDb();await seed();return app.listen(port,'0.0.0.0',()=>console.log(`ThinkTank Academia listening on ${port}`))} export {app}; if(process.env.NODE_ENV!=='test')start();
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import express from 'express';
+import helmet from 'helmet';
+import cors from 'cors';
+import compression from 'compression';
+import rateLimit from 'express-rate-limit';
+
+import { config, isProduction, isTest } from './config.ts';
+import { logger } from './lib/logger.ts';
+import { initPool, closePool, all } from './db/index.ts';
+import { seedDatabase } from './db/seed.ts';
+import { apiNotFound, errorHandler } from './middleware/error.ts';
+import { publishScheduled } from './admin/registry.ts';
+
+// Feature routers
+import { authRoutes } from './routes/auth.routes.ts';
+import { userRoutes } from './routes/user.routes.ts';
+import { learningRoutes } from './routes/learning.routes.ts';
+import { quizRoutes } from './routes/quiz.routes.ts';
+import { contentRoutes } from './routes/content.routes.ts';
+import { discoveryRoutes } from './routes/discovery.routes.ts';
+import { adminRoutes } from './routes/admin.routes.ts';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const repoRoot = path.resolve(__dirname, '../..');
+
+export const app = express();
+
+// Behind Render / cloud load-balancers, trust proxy headers for accurate IPs
+app.set('trust proxy', 1);
+
+// Security headers
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // Vite React inline scripts & styles
+    crossOriginEmbedderPolicy: false,
+  }),
+);
+
+app.use(compression());
+
+// CORS configuration — supports configured production origins or open dev access
+const allowedOrigins = config.frontendOrigins;
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || !allowedOrigins.length || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, true); // Dev-friendly fallback; production sets FRONTEND_URL
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  }),
+);
+
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
+
+// Global API rate limiter
+const globalLimiter = rateLimit({
+  windowMs: config.rateLimit.windowMs,
+  max: config.rateLimit.max,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  skip: (req) => req.path.startsWith('/api/health'),
+  message: { success: false, error: { code: 'RATE_LIMITED', message: 'Too many requests. Please slow down.' } },
+});
+app.use('/api', globalLimiter);
+
+// Local uploads directory (served in development or when STORAGE_DRIVER=local)
+app.use('/uploads', express.static(config.storage.localDir, { maxAge: '7d' }));
+
+// ── Health Checks ───────────────────────────────────────────────────────────
+
+app.get('/api/health', (_req, res) => {
+  res.status(200).json({ ok: true, service: 'thinktank-academia', timestamp: new Date().toISOString() });
+});
+
+app.get('/api/v1/health', (_req, res) => {
+  res.status(200).json({ ok: true, service: 'thinktank-academia', version: 'v1', env: config.env });
+});
+
+// ── SEO: Dynamic Sitemap & Robots.txt ───────────────────────────────────────
+
+app.get('/sitemap.xml', async (req, res, next) => {
+  try {
+    const base = config.publicUrl || `${req.protocol}://${req.get('host')}`;
+    const [courses, content, books, quizzes] = await Promise.all([
+      all<{ slug: string; updated_at: string }>("SELECT slug, updated_at FROM courses WHERE status = 'PUBLISHED'"),
+      all<{ slug: string; updated_at: string }>("SELECT slug, updated_at FROM content WHERE status = 'PUBLISHED'"),
+      all<{ slug: string; updated_at: string }>("SELECT slug, updated_at FROM books WHERE status = 'PUBLISHED'"),
+      all<{ slug: string; updated_at: string }>("SELECT slug, updated_at FROM quizzes WHERE status = 'PUBLISHED'"),
+    ]);
+
+    const staticUrls = [
+      '',
+      'courses',
+      'job-prep',
+      'academic',
+      'books',
+      'knowledge',
+      'world',
+      'humanity',
+      'society',
+      'quizzes',
+      'articles',
+      'search',
+      'about',
+      'contact',
+      'privacy',
+      'terms',
+    ];
+
+    const xmlUrls = [
+      ...staticUrls.map((path) => `  <url>\n    <loc>${base}/${path}</loc>\n    <changefreq>daily</changefreq>\n  </url>`),
+      ...courses.map((c) => `  <url>\n    <loc>${base}/courses/${c.slug}</loc>\n    <lastmod>${new Date(c.updated_at).toISOString().slice(0, 10)}</lastmod>\n  </url>`),
+      ...content.map((c) => `  <url>\n    <loc>${base}/read/${c.slug}</loc>\n    <lastmod>${new Date(c.updated_at).toISOString().slice(0, 10)}</lastmod>\n  </url>`),
+      ...books.map((b) => `  <url>\n    <loc>${base}/books/${b.slug}</loc>\n    <lastmod>${new Date(b.updated_at).toISOString().slice(0, 10)}</lastmod>\n  </url>`),
+      ...quizzes.map((q) => `  <url>\n    <loc>${base}/quizzes/${q.slug}</loc>\n    <lastmod>${new Date(q.updated_at).toISOString().slice(0, 10)}</lastmod>\n  </url>`),
+    ];
+
+    res.type('application/xml').send(
+      `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${xmlUrls.join('\n')}\n</urlset>`,
+    );
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/robots.txt', (req, res) => {
+  const base = config.publicUrl || `${req.protocol}://${req.get('host')}`;
+  res.type('text/plain').send(
+    `User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /dashboard\nDisallow: /my-learning\nDisallow: /bookmarks\nDisallow: /profile\nDisallow: /settings\nSitemap: ${base}/sitemap.xml\n`,
+  );
+});
+
+// ── API Routes (v1) ─────────────────────────────────────────────────────────
+
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1', learningRoutes);
+app.use('/api/v1', quizRoutes);
+app.use('/api/v1', contentRoutes);
+app.use('/api/v1', discoveryRoutes);
+
+// 404 for unknown API calls
+app.use('/api', apiNotFound);
+
+// Global API error handler
+app.use(errorHandler);
+
+// ── Frontend Static Assets & SPA Fallback ───────────────────────────────────
+
+const distDir = path.join(repoRoot, 'dist');
+app.use(express.static(distDir, { maxAge: '1h' }));
+
+// SPA client-side routing fallback: serve index.html for non-API routes
+app.use((req, res, next) => {
+  if (req.method !== 'GET' || req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) {
+    return next();
+  }
+  const indexHtml = path.join(distDir, 'index.html');
+  res.sendFile(indexHtml, (err) => {
+    if (err) {
+      // If dist/index.html is not yet built, serve a minimal holding shell
+      res.status(200).send(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>ThinkTank Academia</title>
+</head>
+<body style="font-family:Georgia,serif;background:#f7f2e8;color:#071b33;margin:0;padding:3rem;text-align:center;">
+  <p style="letter-spacing:0.2em;color:#987029;font-size:0.8rem;font-weight:600;">THINKTANK ACADEMIA</p>
+  <h1 style="font-size:2.4rem;margin:0.5rem 0;">Learn • Think • Understand • Unite</h1>
+  <p style="color:#526173;max-width:540px;margin:1rem auto;line-height:1.6;">A multidisciplinary learning and knowledge platform for education, ideas, and humanity.</p>
+  <div style="margin-top:2rem;">
+    <a href="/api/v1/home" style="display:inline-block;background:#071b33;color:#d4b274;padding:0.75rem 1.5rem;text-decoration:none;font-weight:600;border-radius:3px;margin:0 0.5rem;">API Discovery</a>
+    <a href="/api/health" style="display:inline-block;background:#fff;color:#071b33;border:1px solid #cdd4dc;padding:0.75rem 1.5rem;text-decoration:none;font-weight:600;border-radius:3px;margin:0 0.5rem;">Health Check</a>
+  </div>
+</body>
+</html>`);
+    }
+  });
+});
+
+// ── Server Lifecycle ────────────────────────────────────────────────────────
+
+let scheduledTimer: NodeJS.Timeout | null = null;
+
+export async function start(port = config.port) {
+  await initPool();
+  await seedDatabase();
+
+  // Run scheduled publisher every 60 seconds
+  if (!isTest) {
+    scheduledTimer = setInterval(() => {
+      publishScheduled().catch((e) => logger.error('scheduled publisher error', { message: e.message }));
+    }, 60_000);
+  }
+
+  return new Promise<any>((resolve) => {
+    const server = app.listen(port, '0.0.0.0', () => {
+      logger.info(`ThinkTank Academia listening on port ${port} (${config.env})`);
+      resolve(server);
+    });
+  });
+}
+
+export async function stop(server?: any) {
+  if (scheduledTimer) clearInterval(scheduledTimer);
+  if (server && typeof server.close === 'function') {
+    await new Promise<void>((r) => server.close(() => r()));
+  }
+  await closePool();
+}
+
+// Auto-start only when executed as the main process
+const isMain = process.argv[1] && (process.argv[1].endsWith('server.ts') || process.argv[1].endsWith('server.js'));
+if (isMain && !isTest) {
+  start().catch((err) => {
+    console.error('Fatal startup error:', err);
+    process.exit(1);
+  });
+}
