@@ -34,7 +34,7 @@ export const LoginPage: React.FC = () => {
       <div className="auth-card">
         <div className="auth-header">
           <Link to="/" className="brand-logo" tabIndex={-1}>
-            <span className="brand-monogram">TT</span>
+            <img src="/icon.svg" alt="" className="brand-monogram-img" />
             <div className="brand-text">
               <span className="brand-name">ThinkTank</span>
               <span className="brand-sub">ACADEMIA</span>
@@ -126,7 +126,7 @@ export const RegisterPage: React.FC = () => {
       <div className="auth-card">
         <div className="auth-header">
           <Link to="/" className="brand-logo" tabIndex={-1}>
-            <span className="brand-monogram">TT</span>
+            <img src="/icon.svg" alt="" className="brand-monogram-img" />
             <div className="brand-text">
               <span className="brand-name">ThinkTank</span>
               <span className="brand-sub">ACADEMIA</span>
