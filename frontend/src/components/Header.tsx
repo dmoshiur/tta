@@ -64,6 +64,9 @@ export const Header: React.FC = () => {
 
           {/* Desktop Navigation */}
           <nav className="desktop-nav" aria-label="Main Navigation">
+            <NavLink to="/" end className={({ isActive }) => isActive ? 'nav-link active home-link' : 'nav-link home-link'}>
+              <span className="home-icon" aria-hidden="true">⌂</span>Home
+            </NavLink>
             <NavLink to="/courses" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>Courses</NavLink>
             <NavLink to="/job-prep" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>Job Prep</NavLink>
             <NavLink to="/academic" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>Academic</NavLink>
@@ -206,6 +209,9 @@ export const Header: React.FC = () => {
               )}
 
               <div className="drawer-nav">
+                <NavLink to="/" end onClick={() => setMobileOpen(false)} className="drawer-home-link">
+                  <span aria-hidden="true">⌂</span> Home
+                </NavLink>
                 <p className="drawer-section-title">LEARNING</p>
                 <NavLink to="/courses" onClick={() => setMobileOpen(false)}>Courses</NavLink>
                 <NavLink to="/job-prep" onClick={() => setMobileOpen(false)}>Job Preparation</NavLink>

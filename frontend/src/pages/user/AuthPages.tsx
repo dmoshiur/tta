@@ -4,6 +4,39 @@ import { useAuth } from '../../context/AuthContext.tsx';
 import { useToast } from '../../context/ToastContext.tsx';
 import { authApi } from '../../api.ts';
 
+/** Branded showcase panel shown beside the login / registration forms. */
+const AuthShowcase: React.FC = () => (
+  <aside className="auth-brand-panel" aria-hidden="true">
+    <Link to="/" className="brand-logo light" tabIndex={-1}>
+      <img src="/icon.svg" alt="" className="brand-monogram-img brand-monogram-lg" />
+      <div className="brand-text">
+        <span className="brand-name">ThinkTank</span>
+        <span className="brand-sub">ACADEMIA</span>
+      </div>
+    </Link>
+
+    <h2 className="auth-panel-heading">
+      Learn • Think •<br />Understand • Unite
+    </h2>
+    <p className="auth-panel-lead">
+      A multidisciplinary home for structured courses, model tests, editorial
+      writing, and a library built for curious minds.
+    </p>
+
+    <ul className="auth-panel-points">
+      <li><span>✦</span> Structured courses with modules &amp; lessons</li>
+      <li><span>✦</span> Model tests with instant scoring &amp; analytics</li>
+      <li><span>✦</span> Editorial articles, books &amp; summaries</li>
+      <li><span>✦</span> Progress tracking, bookmarks &amp; notifications</li>
+    </ul>
+
+    <figure className="auth-panel-quote">
+      <blockquote>“Education is the passport to the future.”</blockquote>
+      <figcaption>— The ThinkTank Ethos</figcaption>
+    </figure>
+  </aside>
+);
+
 export const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const toast = useToast();
@@ -31,6 +64,7 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div className="auth-page-wrapper">
+      <AuthShowcase />
       <div className="auth-card">
         <div className="auth-header">
           <Link to="/" className="brand-logo" tabIndex={-1}>
@@ -123,6 +157,7 @@ export const RegisterPage: React.FC = () => {
 
   return (
     <div className="auth-page-wrapper">
+      <AuthShowcase />
       <div className="auth-card">
         <div className="auth-header">
           <Link to="/" className="brand-logo" tabIndex={-1}>
@@ -220,6 +255,7 @@ export const ForgotPasswordPage: React.FC = () => {
 
   return (
     <div className="auth-page-wrapper">
+      <AuthShowcase />
       <div className="auth-card">
         <div className="auth-header">
           <p className="auth-eyebrow">RECOVER ACCESS</p>
@@ -317,6 +353,7 @@ export const ResetPasswordPage: React.FC = () => {
 
   return (
     <div className="auth-page-wrapper">
+      <AuthShowcase />
       <div className="auth-card">
         <div className="auth-header">
           <p className="auth-eyebrow">CHOOSE NEW CREDENTIALS</p>
