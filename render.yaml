@@ -13,6 +13,8 @@ services:
       # (Render's managed PostgreSQL is no longer used).
       - key: DATABASE_URL
         sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: PUBLIC_URL
@@ -39,17 +41,13 @@ services:
         sync: false
       - key: SMTP_FROM
         sync: false
+      # Media storage — the project's own Storage Gateway (NGO File Cloud bridge).
+      # Set the key id/secret in the Render dashboard; never commit them.
       - key: STORAGE_DRIVER
-        value: s3
-      - key: STORAGE_ENDPOINT
+        value: gateway
+      - key: STORAGE_GATEWAY_URL
+        value: https://st.thamjj13.top/api/v1
+      - key: STORAGE_GATEWAY_KEY_ID
         sync: false
-      - key: STORAGE_REGION
-        value: auto
-      - key: STORAGE_BUCKET
-        sync: false
-      - key: STORAGE_ACCESS_KEY_ID
-        sync: false
-      - key: STORAGE_SECRET_ACCESS_KEY
-        sync: false
-      - key: STORAGE_PUBLIC_URL
+      - key: STORAGE_GATEWAY_KEY_SECRET
         sync: false

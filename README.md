@@ -87,7 +87,7 @@ thinktank-academia/
    ```bash
    cp .env.example .env
    ```
-   *(Without `DATABASE_URL`, the server automatically starts on a local SQLite file in `./data` so you can develop immediately with zero external dependencies. In production point `DATABASE_URL` at your Turso database, e.g. `libsql://user:password@your-db.your-org.turso.io`.)*
+   *(Without `DATABASE_URL`, the server automatically starts on a local SQLite file in `./data` so you can develop immediately with zero external dependencies. In production point `DATABASE_URL` at your Turso database (`libsql://your-db-your-org.turso.io`) and put the database auth token in `TURSO_AUTH_TOKEN`.)*
 
 3. Start development servers:
    ```bash
@@ -125,10 +125,12 @@ This repository is configured for one-click deployment using Render Blueprints (
    npm i -g @turso/cli
    turso db create thinktank
    turso db show thinktank --url      # → DATABASE_URL
-   turso db show thinktank --auth-token
+   turso db tokens create thinktank   # → TURSO_AUTH_TOKEN
    ```
 4. Set environment variables in Render:
    - `DATABASE_URL`: Your Turso libsql URL (see above).
+   - `TURSO_AUTH_TOKEN`: The Turso database auth token (Turso does not accept `user:password@` URLs).
+   - `STORAGE_GATEWAY_KEY_ID` / `STORAGE_GATEWAY_KEY_SECRET`: Credentials for the project's Storage Gateway (`STORAGE_DRIVER=gateway`, `STORAGE_GATEWAY_URL=https://st.thamjj13.top/api/v1` are preset in `render.yaml`). See §6.1.
    - `PUBLIC_URL`: Your deployed HTTPS service URL (e.g., `https://thinktank-academia.onrender.com`).
    - `FRONTEND_URL`: Allowed CORS origin(s).
    - `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD`: The Super Admin account that owns the admin console (seeded on first boot).
@@ -138,6 +140,16 @@ This repository is configured for one-click deployment using Render Blueprints (
    - Health path: `/api/health` returns `200 OK`.
 6. Static & SPA Serving:
    - In production, Express automatically serves `dist/` and routes all non-API paths to `index.html`.
+
+### 6.1 Media storage — the project's Storage Gateway
+
+Uploads are stored on the project's own **Storage Gateway** — the "NGO File Cloud" Storage Bridge REST API (`STORAGE_DRIVER=gateway`, `STORAGE_GATEWAY_URL=https://st.thamjj13.top/api/v1`). The API authenticates every call with the key issued by the gateway dashboard: `ng_key_…`/`ng_live_…` keys are the gateway's *bearer* family and are sent as `Authorization: Bearer ng_live_…`; `am_store_live_…` keys (the bridge family) are sent as `X-AM-Storage-Key-Id` / `X-AM-Storage-Key-Secret`. The family is picked automatically from the key-id prefix. The key needs the `files:upload`, `files:download` and `files:delete` scopes.
+
+- Documents up to 4 MB are sent with one multipart `POST /files`; larger documents use the gateway's presigned `init → PUT → complete` flow, so Vercel's function payload limit never applies.
+- Objects stay **private** on the gateway. The app stores permanent links of the form `PUBLIC_URL/api/v1/media/<file-id>/<name>.pdf`; that route fetches a short-lived signed URL from the gateway (cached until just before it expires) and redirects to it. `…/media/<file-id>/meta` returns the file metadata.
+- Deleting media moves the document to the gateway's Trash (`DELETE /files/<id>`), where the gateway's retention policy applies.
+- **The gateway currently accepts PDF documents only** (extension, MIME type and `%PDF-` magic bytes are all verified server-side). Other file types — including avatar images — are rejected with a clear `400` error until the gateway is extended.
+- On boot the server probes `GET /health` on the gateway and logs the result, so a wrong URL or a revoked key shows up immediately instead of on the first upload.
 
 ---
 

@@ -11,8 +11,13 @@ import crypto from 'node:crypto';
 
 export const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../..');
 
-/** Loads `.env` from the repository root without overwriting real environment variables. */
+/**
+ * Loads `.env` from the repository root without overwriting real environment
+ * variables. Skipped under NODE_ENV=test so the suite never inherits a
+ * developer's production `.env` (real Turso, SMTP or storage-gateway secrets).
+ */
 function loadDotEnv(file = path.join(repoRoot, '.env')): void {
+  if ((process.env.NODE_ENV ?? '').trim() === 'test') return;
   try {
     const raw = fs.readFileSync(file, 'utf8');
     for (const line of raw.split(/\r?\n/)) {
@@ -57,7 +62,13 @@ export const config = {
   isProduction,
   isTest,
   port: int('PORT', 3000),
-  databaseUrl: str('DATABASE_URL'),
+  databaseUrl: str('DATABASE_URL') || str('TURSO_DATABASE_URL'),
+  /**
+   * Turso auth token. Read from TURSO_AUTH_TOKEN (Turso's standard variable
+   * name). A `?authToken=` query parameter on DATABASE_URL still works — the
+   * libsql client merges both, with the explicit variable taking precedence.
+   */
+  databaseAuthToken: str('TURSO_AUTH_TOKEN') || str('DATABASE_AUTH_TOKEN'),
   jwt: {
     secret: jwtSecret || generatedSecret,
     secretIsEphemeral: !jwtSecret,
@@ -94,7 +105,13 @@ export const config = {
   },
   seedDemoContent: bool('SEED_DEMO_CONTENT', true),
   storage: {
-    driver: (str('STORAGE_DRIVER', isProduction ? 's3' : 'local') as 'local' | 's3'),
+    /**
+     * local   : ./uploads on disk (development only)
+     * s3      : any S3-compatible object store (SigV4)
+     * gateway : the project's own Storage Gateway (NGO File Cloud "Storage
+     *           Bridge" REST API at STORAGE_GATEWAY_URL, key-id + secret auth)
+     */
+    driver: (str('STORAGE_DRIVER', isProduction ? 'gateway' : 'local') as 'local' | 's3' | 'gateway'),
     endpoint: str('STORAGE_ENDPOINT'),
     region: str('STORAGE_REGION', 'us-east-1'),
     bucket: str('STORAGE_BUCKET'),
@@ -102,6 +119,16 @@ export const config = {
     secretAccessKey: str('STORAGE_SECRET_ACCESS_KEY'),
     prefix: str('STORAGE_PREFIX', 'media').replace(/^\/+|\/+$/g, ''),
     publicUrl: str('STORAGE_PUBLIC_URL').replace(/\/+$/, ''),
+    gateway: {
+      /** Base URL of the bridge API, e.g. https://st.thamjj13.top/api/v1 */
+      url: str('STORAGE_GATEWAY_URL').replace(/\/+$/, ''),
+      /** Dual-token credential issued by the gateway dashboard (ng_key_…). */
+      keyId: str('STORAGE_GATEWAY_KEY_ID'),
+      /** Dual-token secret (ng_live_…). Also accepted alone as a bearer token. */
+      keySecret: str('STORAGE_GATEWAY_KEY_SECRET'),
+      /** Network timeout for a single gateway call. */
+      timeoutMs: int('STORAGE_GATEWAY_TIMEOUT_MS', 30_000),
+    },
     maxBytes: int('MAX_UPLOAD_MB', 5) * 1024 * 1024,
     allowedMimeTypes: [
       'image/jpeg',
@@ -147,4 +174,8 @@ export const mailEnabled = Boolean(config.smtp.host);
 export const storageConfigured =
   config.storage.driver === 's3'
     ? Boolean(config.storage.endpoint && config.storage.bucket && config.storage.accessKeyId && config.storage.secretAccessKey)
-    : true;
+    : config.storage.driver === 'gateway'
+      ? Boolean(config.storage.gateway.url && config.storage.gateway.keySecret)
+      : true;
+/** True for drivers that survive a redeploy (local disk on Render is ephemeral). */
+export const storagePersistent = config.storage.driver === 's3' || config.storage.driver === 'gateway';

@@ -12,10 +12,13 @@ export type Row = Record<string, any>;
  * development, in-memory SQLite in tests.
  *
  * `DATABASE_URL` accepts:
- *   • libsql://user:pass@db.turso.io          (Turso, username + password)
- *   • libsql://...?authToken=<token>          (Turso, auth token)
- *   • file:/absolute/path/to/db.sqlite        (any local file)
+ *   • libsql://db-org.turso.io                 (Turso — token in TURSO_AUTH_TOKEN)
+ *   • libsql://db-org.turso.io?authToken=<t>   (Turso — token embedded in the URL)
+ *   • file:/absolute/path/to/db.sqlite         (any local file)
  *   • (unset)                                  → file in ./data (dev) or :memory: (test)
+ *
+ * Turso authenticates with a JWT auth token only (`turso db tokens create`);
+ * `libsql://user:password@…` URLs are NOT a supported credential form.
  *
  * The application was originally written against PostgreSQL. To keep the query
  * catalogue portable, every statement is passed through `toSqlite()` which
@@ -44,11 +47,15 @@ function resolveDatabaseUrl(): { url: string; mode: 'turso' | 'file' | 'memory' 
 export async function initPool(): Promise<void> {
   if (client) return;
   const { url, mode } = resolveDatabaseUrl();
-  client = createClient({ url });
+  const authToken = mode === 'turso' && config.databaseAuthToken ? config.databaseAuthToken : undefined;
+  client = createClient(authToken ? { url, authToken } : { url });
   inMemory = mode === 'memory';
   fileBacked = mode === 'file';
 
   if (mode === 'turso') {
+    if (!authToken && !/[?&]authToken=/.test(url)) {
+      logger.warn('database: DATABASE_URL points at Turso but no TURSO_AUTH_TOKEN (or ?authToken=) is set — queries will be rejected');
+    }
     logger.info('database: connected to Turso (libsql over HTTPS)');
   } else if (mode === 'memory') {
     logger.warn('database: using the disposable in-memory SQLite database (data is lost on restart)');
