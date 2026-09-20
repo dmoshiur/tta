@@ -334,4 +334,70 @@ export const adminApi = {
   getAnalytics: () => request<any>('/admin/analytics'),
 
   getActivityLog: (page = 1) => request<PagedResponse<any>>(`/admin/activity?page=${page}`),
+
+  // ── Super Admin console: system & operations ─────────────────────────────
+
+  getSystemHealth: () => request<any>('/admin/system/health'),
+
+  getApiLogs: (params: Record<string, any> = {}) => {
+    const q = new URLSearchParams(params as any).toString();
+    return request<any>(`/admin/system/api-logs${q ? `?${q}` : ''}`);
+  },
+
+  getEmailOverview: () => request<any>('/admin/email/overview'),
+
+  sendEmail: (data: { to: string; subject: string; message: string }) =>
+    request<{ delivered: boolean; reason: string | null; to: string }>('/admin/email/send', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getSmtpLogs: (params: Record<string, any> = {}) => {
+    const q = new URLSearchParams(params as any).toString();
+    return request<any>(`/admin/email/logs${q ? `?${q}` : ''}`);
+  },
+
+  getSecurityOverview: () => request<any>('/admin/security/overview'),
+
+  getAuditLogs: (params: Record<string, any> = {}) => {
+    const q = new URLSearchParams(params as any).toString();
+    return request<any>(`/admin/audit-logs${q ? `?${q}` : ''}`);
+  },
+
+  getBackups: () => request<{ items: any[]; directory: string }>('/admin/backups'),
+
+  createBackup: (note = '') =>
+    request<{ id: string; filename: string; size_bytes: number; table_counts: Record<string, number> }>('/admin/backups', {
+      method: 'POST',
+      body: JSON.stringify({ note }),
+    }),
+
+  deleteBackup: (id: string) => request<{ deleted: boolean }>(`/admin/backups/${id}`, { method: 'DELETE' }),
+
+  /** Streams a backup through the authenticated fetch client and saves it locally. */
+  downloadBackup: async (id: string, filename: string) => {
+    const token = getToken();
+    const response = await fetch(`${API_BASE}/admin/backups/${id}/download`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) {
+      let message = 'Download failed.';
+      try {
+        const body = await response.json();
+        message = body?.error?.message || message;
+      } catch {
+        /* keep default */
+      }
+      throw new ApiRequestError(message, response.status);
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  },
 };

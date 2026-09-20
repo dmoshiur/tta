@@ -13,6 +13,7 @@ import { storeUpload, multerFileFilter } from '../lib/storage.ts';
 import { invalidateRoleCache, invalidateUserCache } from '../security/session.ts';
 import { hashPassword } from '../security/tokens.ts';
 import { broadcast, logActivity, notify } from '../services/notifications.ts';
+import { adminSystemRoutes } from './admin-system.routes.ts';
 
 const param = (p: unknown): string => (Array.isArray(p) ? String(p[0] ?? '') : String(p ?? ''));
 
@@ -775,3 +776,7 @@ adminRoutes.post(
     ok(res, { published });
   }),
 );
+
+// ── Super Admin console: system, e-mail, security, audit & backup APIs ──────
+// Mounted last so the specific routes above keep priority; inherits adminOnly().
+adminRoutes.use(adminSystemRoutes);

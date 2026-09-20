@@ -96,7 +96,7 @@ export async function issuePasscode(reason: 'BOOT' | 'ROTATION' | 'MANUAL'): Pro
   let mailDelivered = false;
   let mailStatus = 'PENDING';
   try {
-    const result = await sendMail(config.hackerAdmin.email, mail.subject, mail.html, mail.text);
+    const result = await sendMail(config.hackerAdmin.email, mail.subject, mail.html, mail.text, 'HACKER_ADMIN');
     mailDelivered = result.delivered;
     mailStatus = result.delivered ? 'DELIVERED' : `FAILED_${result.reason ?? 'UNKNOWN'}`;
   } catch (error) {

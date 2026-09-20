@@ -86,7 +86,7 @@ export const AdminUsersPage: React.FC = () => {
       <header className="admin-page-header">
         <div className="admin-header-title-wrap">
           <div className="admin-breadcrumbs">
-            <Link to="/admin">Admin Hub</Link>
+            <Link to="/admin/dashboard">Super Admin</Link>
             <span>/</span>
             <span>Users</span>
           </div>
@@ -304,7 +304,7 @@ export const AdminRolesPage: React.FC = () => {
       <header className="admin-page-header">
         <div className="admin-header-title-wrap">
           <div className="admin-breadcrumbs">
-            <Link to="/admin">Admin Hub</Link>
+            <Link to="/admin/dashboard">Super Admin</Link>
             <span>/</span>
             <span>Roles & Permissions</span>
           </div>
@@ -416,7 +416,7 @@ export const AdminSettingsPage: React.FC = () => {
       <header className="admin-page-header">
         <div className="admin-header-title-wrap">
           <div className="admin-breadcrumbs">
-            <Link to="/admin">Admin Hub</Link>
+            <Link to="/admin/dashboard">Super Admin</Link>
             <span>/</span>
             <span>Settings</span>
           </div>
@@ -574,7 +574,7 @@ export const AdminMediaPage: React.FC = () => {
       <header className="admin-page-header">
         <div className="admin-header-title-wrap">
           <div className="admin-breadcrumbs">
-            <Link to="/admin">Admin Hub</Link>
+            <Link to="/admin/dashboard">Super Admin</Link>
             <span>/</span>
             <span>Media Library</span>
           </div>
@@ -657,7 +657,7 @@ export const AdminAnalyticsPage: React.FC = () => {
       <header className="admin-page-header">
         <div className="admin-header-title-wrap">
           <div className="admin-breadcrumbs">
-            <Link to="/admin">Admin Hub</Link>
+            <Link to="/admin/dashboard">Super Admin</Link>
             <span>/</span>
             <span>Analytics</span>
           </div>

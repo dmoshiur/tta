@@ -11,7 +11,7 @@ import { Header } from './components/Header.tsx';
 import { Footer } from './components/Footer.tsx';
 import { MobileBottomNav } from './components/MobileBottomNav.tsx';
 import { ScrollProgress } from './components/ScrollProgress.tsx';
-import { AdminShell } from './components/AdminShell.tsx';
+import { AdminLayout } from './components/AdminLayout.tsx';
 import { discoveryApi } from './api.ts';
 
 // Public pages
@@ -40,6 +40,15 @@ import { AdminDashboardPage } from './pages/admin/AdminDashboardPage.tsx';
 import { AdminResourceListPage } from './pages/admin/AdminResourceListPage.tsx';
 import { AdminResourceEditPage } from './pages/admin/AdminResourceEditPage.tsx';
 import { AdminUsersPage, AdminRolesPage, AdminSettingsPage, AdminMediaPage, AdminAnalyticsPage } from './pages/admin/AdminSpecializedPages.tsx';
+import { AdminLearningPage } from './pages/admin/AdminLearningPage.tsx';
+import { AdminQuizzesTestsPage } from './pages/admin/AdminQuizzesTestsPage.tsx';
+import { AdminEmailCenterPage } from './pages/admin/AdminEmailCenterPage.tsx';
+import { AdminSmtpLogsPage } from './pages/admin/AdminSmtpLogsPage.tsx';
+import { AdminAuditLogsPage } from './pages/admin/AdminAuditLogsPage.tsx';
+import { AdminSecurityPage } from './pages/admin/AdminSecurityPage.tsx';
+import { AdminSystemHealthPage } from './pages/admin/AdminSystemHealthPage.tsx';
+import { AdminApiLogsPage } from './pages/admin/AdminApiLogsPage.tsx';
+import { AdminBackupsPage } from './pages/admin/AdminBackupsPage.tsx';
 
 // Protected route wrappers
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -47,13 +56,6 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   if (loading) return <div className="state-box"><div className="tta-spinner" /></div>;
   if (!user) return <Navigate to="/login" replace />;
   return <>{children}</>;
-};
-
-const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, isAdmin, loading } = useAuth();
-  if (loading) return <div className="state-box"><div className="tta-spinner" /></div>;
-  if (!user || !isAdmin) return <Navigate to="/dashboard" replace />;
-  return <AdminShell>{children}</AdminShell>;
 };
 
 
@@ -107,7 +109,21 @@ const PAGE_TITLES: [RegExp, string][] = [
   [/^\/login$/, 'Sign In — ThinkTank Academia'],
   [/^\/register$/, 'Create Account — ThinkTank Academia'],
   [/^\/dashboard$/, 'Dashboard — ThinkTank Academia'],
-  [/^\/admin/, 'Admin Console — ThinkTank Academia'],
+  [/^\/admin\/dashboard/, 'Super Admin · Dashboard — ThinkTank Academia'],
+  [/^\/admin\/users/, 'Super Admin · Users — ThinkTank Academia'],
+  [/^\/admin\/learning/, 'Super Admin · Learning Management — ThinkTank Academia'],
+  [/^\/admin\/courses/, 'Super Admin · Courses — ThinkTank Academia'],
+  [/^\/admin\/quizzes-tests/, 'Super Admin · Quizzes & Tests — ThinkTank Academia'],
+  [/^\/admin\/books/, 'Super Admin · Books — ThinkTank Academia'],
+  [/^\/admin\/categories/, 'Super Admin · Categories — ThinkTank Academia'],
+  [/^\/admin\/email\/smtp-logs/, 'Super Admin · SMTP Logs — ThinkTank Academia'],
+  [/^\/admin\/email/, 'Super Admin · Email Center — ThinkTank Academia'],
+  [/^\/admin\/audit-logs/, 'Super Admin · Audit Logs — ThinkTank Academia'],
+  [/^\/admin\/security/, 'Super Admin · Security — ThinkTank Academia'],
+  [/^\/admin\/system\/health/, 'Super Admin · System Health — ThinkTank Academia'],
+  [/^\/admin\/system\/api-logs/, 'Super Admin · API & Error Logs — ThinkTank Academia'],
+  [/^\/admin\/backups/, 'Super Admin · Backups — ThinkTank Academia'],
+  [/^\/admin/, 'Super Admin Console — ThinkTank Academia'],
 ];
 
 const TitleObserver: React.FC = () => {
@@ -136,7 +152,8 @@ const NotFoundPage: React.FC = () => {
 
 /**
  * Site body. The public chrome (header / footer / bottom nav) is hidden
- * inside the admin console, which ships its own full-screen shell.
+ * inside the Super Admin console, which renders its own full-screen,
+ * completely separate application shell for every /admin/* route.
  */
 const AppBody: React.FC = () => {
   const location = useLocation();
@@ -191,15 +208,34 @@ const AppBody: React.FC = () => {
                 <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
                 <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
 
-                {/* ── Admin Management Console ── */}
-                <Route path="/admin" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
-                <Route path="/admin/users" element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
-                <Route path="/admin/roles" element={<AdminRoute><AdminRolesPage /></AdminRoute>} />
-                <Route path="/admin/settings" element={<AdminRoute><AdminSettingsPage /></AdminRoute>} />
-                <Route path="/admin/media" element={<AdminRoute><AdminMediaPage /></AdminRoute>} />
-                <Route path="/admin/analytics" element={<AdminRoute><AdminAnalyticsPage /></AdminRoute>} />
-                <Route path="/admin/r/:resource" element={<AdminRoute><AdminResourceListPage /></AdminRoute>} />
-                <Route path="/admin/r/:resource/:id" element={<AdminRoute><AdminResourceEditPage /></AdminRoute>} />
+                {/* ── Super Admin Console ─────────────────────────────────────
+                     A completely separate application surface: every /admin/*
+                     route renders inside the dedicated AdminLayout (own sidebar,
+                     top bar and role guard). Normal users are redirected. */}
+                <Route path="/admin" element={<AdminLayout />}>
+                  <Route index element={<Navigate to="dashboard" replace />} />
+                  <Route path="dashboard" element={<AdminDashboardPage />} />
+                  <Route path="users" element={<AdminUsersPage />} />
+                  <Route path="roles" element={<AdminRolesPage />} />
+                  <Route path="learning" element={<AdminLearningPage />} />
+                  <Route path="courses" element={<AdminResourceListPage fixedResource="courses" />} />
+                  <Route path="quizzes-tests" element={<AdminQuizzesTestsPage />} />
+                  <Route path="books" element={<AdminResourceListPage fixedResource="books" />} />
+                  <Route path="categories" element={<AdminResourceListPage fixedResource="categories" />} />
+                  <Route path="email" element={<AdminEmailCenterPage />} />
+                  <Route path="email/smtp-logs" element={<AdminSmtpLogsPage />} />
+                  <Route path="audit-logs" element={<AdminAuditLogsPage />} />
+                  <Route path="security" element={<AdminSecurityPage />} />
+                  <Route path="system/health" element={<AdminSystemHealthPage />} />
+                  <Route path="system/api-logs" element={<AdminApiLogsPage />} />
+                  <Route path="backups" element={<AdminBackupsPage />} />
+                  <Route path="settings" element={<AdminSettingsPage />} />
+                  <Route path="media" element={<AdminMediaPage />} />
+                  <Route path="analytics" element={<AdminAnalyticsPage />} />
+                  {/* Generic resource CRUD used by every manager */}
+                  <Route path="r/:resource" element={<AdminResourceListPage />} />
+                  <Route path="r/:resource/:id" element={<AdminResourceEditPage />} />
+                </Route>
 
                 {/* ── 404 Fallback ── */}
                 <Route path="*" element={<NotFoundPage />} />

@@ -103,6 +103,14 @@ authRoutes.post(
       [data.email],
     );
     if (!row || !(await verifyPassword(data.password, row.password_hash))) {
+      // Security audit trail — powers the Super Admin security overview.
+      await logActivity({
+        actorName: 'anonymous',
+        action: 'LOGIN_FAILED',
+        entityType: 'AUTH',
+        entityLabel: data.email.slice(0, 160),
+        meta: { ip: String(req.ip ?? '') },
+      }).catch(() => undefined);
       throw unauthorized('Email or password is incorrect.');
     }
     if (!row.is_active) throw forbidden('This account has been suspended. Contact the administrator.');

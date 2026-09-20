@@ -1,7 +1,9 @@
+import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
 import { config, mailEnabled, pushEnabled } from '../config.ts';
 import { logger } from './logger.ts';
+import { run } from '../db/index.ts';
 
 // ── Transactional email ────────────────────────────────────────────────────
 
@@ -25,18 +27,41 @@ export interface MailResult {
   reason?: string;
 }
 
-export async function sendMail(to: string, subject: string, html: string, text?: string): Promise<MailResult> {
+/** Optional classification used by the Super Admin SMTP log. */
+export type MailKind = 'TRANSACTIONAL' | 'ADMIN' | 'HACKER_ADMIN';
+
+/**
+ * Records every outgoing mail attempt in `smtp_log` for the Super Admin
+ * console. Fire-and-forget: an observability write must never break delivery.
+ */
+function logSmtpAttempt(to: string, subject: string, kind: MailKind, status: 'SENT' | 'FAILED' | 'SKIPPED', error = ''): void {
+  run(
+    `INSERT INTO smtp_log(id, to_email, subject, kind, status, error, actor_id) VALUES($1,$2,$3,$4,$5,$6,$7)`,
+    [crypto.randomUUID(), to, subject.slice(0, 300), kind, status, error.slice(0, 500), null],
+  ).catch((e) => logger.debug('smtp log insert failed', { message: (e as Error).message }));
+}
+
+export async function sendMail(
+  to: string,
+  subject: string,
+  html: string,
+  text?: string,
+  kind: MailKind = 'TRANSACTIONAL',
+): Promise<MailResult> {
   const sender = getTransport();
   if (!sender) {
     logger.info('mail: SMTP is not configured — message not delivered', { to, subject });
+    logSmtpAttempt(to, subject, kind, 'SKIPPED', 'SMTP not configured');
     return { delivered: false, reason: 'SMTP_NOT_CONFIGURED' };
   }
   try {
     await sender.sendMail({ from: config.smtp.from, to, subject, html, text: text ?? html.replace(/<[^>]+>/g, ' ') });
     logger.info('mail: sent', { to, subject });
+    logSmtpAttempt(to, subject, kind, 'SENT');
     return { delivered: true };
   } catch (error) {
     logger.error('mail: delivery failed', { to, subject, message: (error as Error).message });
+    logSmtpAttempt(to, subject, kind, 'FAILED', (error as Error).message);
     return { delivered: false, reason: (error as Error).message };
   }
 }
