@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useI18n } from '../i18n/index.tsx';
 
 /**
  * ScrollProgress — a gradient progress bar pinned to the top of the
@@ -6,6 +7,7 @@ import React, { useEffect, useState } from 'react';
  * back-to-top button that appears after scrolling down.
  */
 export const ScrollProgress: React.FC = () => {
+  const { t } = useI18n();
   const [progress, setProgress] = useState(0);
   const [showTop, setShowTop] = useState(false);
 
@@ -46,7 +48,7 @@ export const ScrollProgress: React.FC = () => {
       <button
         className={`back-to-top ${showTop ? 'show' : ''}`}
         onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-        aria-label="Back to top"
+        aria-label={t('a11y.backToTop')}
       >
         ↑
       </button>

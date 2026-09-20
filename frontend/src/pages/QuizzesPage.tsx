@@ -4,8 +4,11 @@ import { quizApi } from '../api.ts';
 import type { QuizSummary } from '../types/index.ts';
 import { QuizCard } from '../components/QuizCard.tsx';
 import { LoadingState, EmptyState, ErrorState } from '../components/States.tsx';
+import { RevealGroup } from '../components/Reveal.tsx';
+import { useI18n } from '../i18n/index.tsx';
 
 export const QuizzesPage: React.FC = () => {
+  const { t } = useI18n();
   const [searchParams, setSearchParams] = useSearchParams();
   const kindParam = searchParams.get('kind') || '';
   const qParam = searchParams.get('q') || '';
@@ -45,42 +48,32 @@ export const QuizzesPage: React.FC = () => {
     setSearchParams(next);
   };
 
+  const kindFilters: { id: string; labelKey: string }[] = [
+    { id: '', labelKey: 'quizzesPage.all' },
+    { id: 'MODEL_TEST', labelKey: 'quizzesPage.modelTests' },
+    { id: 'MCQ', labelKey: 'quizzesPage.mcqPractice' },
+    { id: 'QUIZ', labelKey: 'quizzesPage.courseQuizzes' },
+  ];
+
   return (
     <div className="page-container quizzes-catalog-page">
       <header className="page-header">
-        <p className="page-eyebrow">ASSESSMENT & MCQS</p>
-        <h1 className="page-title">Quizzes & Model Tests</h1>
-        <p className="page-lead">
-          Test your preparation with timed examinations, negative marking simulations, question explanations, and detailed performance history.
-        </p>
+        <p className="page-eyebrow">{t('quizzesPage.eyebrow')}</p>
+        <h1 className="page-title">{t('quizzesPage.title')}</h1>
+        <p className="page-lead">{t('quizzesPage.lead')}</p>
 
         {/* Filter Pills */}
         <div className="catalog-filters-bar">
           <div className="filter-group">
-            <button
-              className={`filter-pill ${!kindParam ? 'active' : ''}`}
-              onClick={() => updateKind('')}
-            >
-              All Tests
-            </button>
-            <button
-              className={`filter-pill ${kindParam === 'MODEL_TEST' ? 'active' : ''}`}
-              onClick={() => updateKind('MODEL_TEST')}
-            >
-              Model Tests
-            </button>
-            <button
-              className={`filter-pill ${kindParam === 'MCQ' ? 'active' : ''}`}
-              onClick={() => updateKind('MCQ')}
-            >
-              MCQ Practice
-            </button>
-            <button
-              className={`filter-pill ${kindParam === 'QUIZ' ? 'active' : ''}`}
-              onClick={() => updateKind('QUIZ')}
-            >
-              Course Quizzes
-            </button>
+            {kindFilters.map((f) => (
+              <button
+                key={f.id || 'all'}
+                className={`filter-pill ${kindParam === f.id ? 'active' : ''}`}
+                onClick={() => updateKind(f.id)}
+              >
+                {t(f.labelKey)}
+              </button>
+            ))}
           </div>
 
           <form onSubmit={handleSearch} className="filter-search-inline">
@@ -88,30 +81,32 @@ export const QuizzesPage: React.FC = () => {
               type="search"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search tests…"
-              aria-label="Search tests"
+              placeholder={t('quizzesPage.searchPlaceholder')}
+              aria-label={t('quizzesPage.searchAria')}
             />
-            <button type="submit" className="btn-primary-sm">Search</button>
+            <button type="submit" className="btn-primary-sm">{t('articlesPage.searchBtn')}</button>
           </form>
         </div>
       </header>
 
       {loading ? (
-        <LoadingState message="Loading quizzes and tests…" />
+        <LoadingState message={t('quizzesPage.loading')} />
       ) : error ? (
         <ErrorState error={error} onRetry={() => window.location.reload()} />
       ) : quizzes.length === 0 ? (
         <EmptyState
-          title="No quizzes match your filter"
-          message="Try selecting another test category or clearing your search."
-          actionText="View All Tests"
+          title={t('quizzesPage.emptyTitle')}
+          message={t('quizzesPage.emptyBody')}
+          actionText={t('quizzesPage.viewAll')}
           onAction={() => { setSearchInput(''); setSearchParams(new URLSearchParams()); }}
         />
       ) : (
         <div className="cards-grid">
-          {quizzes.map((quiz) => (
-            <QuizCard key={quiz.id} quiz={quiz} />
-          ))}
+          <RevealGroup direction="up" stagger={90}>
+            {quizzes.map((quiz) => (
+              <QuizCard key={quiz.id} quiz={quiz} />
+            ))}
+          </RevealGroup>
         </div>
       )}
     </div>

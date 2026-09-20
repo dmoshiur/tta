@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { discoveryApi } from '../api.ts';
 import { LoadingState, EmptyState } from '../components/States.tsx';
+import { useI18n } from '../i18n/index.tsx';
 
 export const SearchPage: React.FC = () => {
+  const { t } = useI18n();
   const [searchParams, setSearchParams] = useSearchParams();
   const qParam = searchParams.get('q') || '';
   const typeParam = searchParams.get('type') || '';
@@ -47,24 +49,22 @@ export const SearchPage: React.FC = () => {
   return (
     <div className="page-container search-screen">
       <header className="page-header">
-        <p className="page-eyebrow">GLOBAL DISCOVERY</p>
-        <h1 className="page-title">Search ThinkTank Academia</h1>
-        <p className="page-lead">
-          Find courses, lessons, articles, book summaries, quizzes, and MCQs across the entire repository.
-        </p>
+        <p className="page-eyebrow">{t('searchPage.eyebrow')}</p>
+        <h1 className="page-title">{t('searchPage.title')}</h1>
+        <p className="page-lead">{t('searchPage.lead')}</p>
 
         <form onSubmit={handleSearchSubmit} className="catalog-search-form">
           <input
             type="search"
             value={inputVal}
             onChange={(e) => setInputVal(e.target.value)}
-            placeholder="Type anything to search (e.g. Critical Thinking, Economics, UN, Geometry)…"
-            aria-label="Search the knowledge repository"
+            placeholder={t('searchPage.examples')}
+            aria-label={t('searchPage.title')}
             className="catalog-search-input"
             autoFocus
           />
           <button type="submit" className="btn-primary search-btn">
-            Search
+            {t('articlesPage.searchBtn')}
           </button>
         </form>
 
@@ -74,40 +74,40 @@ export const SearchPage: React.FC = () => {
             className={`filter-pill ${!typeParam ? 'active' : ''}`}
             onClick={() => updateType('')}
           >
-            All Results
+            {t('searchPage.allResults')}
           </button>
           <button
             className={`filter-pill ${typeParam === 'course' ? 'active' : ''}`}
             onClick={() => updateType('course')}
           >
-            Courses {results?.counts?.courses ? `(${results.counts.courses})` : ''}
+            {t('user.bookmarks.courses')} {results?.counts?.courses ? `(${results.counts.courses})` : ''}
           </button>
           <button
             className={`filter-pill ${typeParam === 'book' ? 'active' : ''}`}
             onClick={() => updateType('book')}
           >
-            Books {results?.counts?.books ? `(${results.counts.books})` : ''}
+            {t('user.bookmarks.books')} {results?.counts?.books ? `(${results.counts.books})` : ''}
           </button>
           <button
             className={`filter-pill ${typeParam === 'quiz' ? 'active' : ''}`}
             onClick={() => updateType('quiz')}
           >
-            Quizzes {results?.counts?.quizzes ? `(${results.counts.quizzes})` : ''}
+            {t('user.bookmarks.quizzes')} {results?.counts?.quizzes ? `(${results.counts.quizzes})` : ''}
           </button>
           <button
             className={`filter-pill ${typeParam === 'lesson' ? 'active' : ''}`}
             onClick={() => updateType('lesson')}
           >
-            Lessons {results?.counts?.lessons ? `(${results.counts.lessons})` : ''}
+            {t('user.bookmarks.lessons')} {results?.counts?.lessons ? `(${results.counts.lessons})` : ''}
           </button>
         </div>
       </header>
 
       {loading ? (
-        <LoadingState message="Searching the repository…" />
+        <LoadingState message={t('searchPage.searching')} />
       ) : !qParam ? (
         <div className="search-hint-box">
-          <h3>Try searching for:</h3>
+          <h3>{t('searchPage.trySearching')}</h3>
           <div className="search-tags-suggestions">
             {['Critical Thinking', 'General Knowledge', 'Economics', 'Geopolitics', 'Empathy', 'Constitution', 'Kahneman', 'Mathematics'].map((term) => (
               <button
@@ -127,9 +127,9 @@ export const SearchPage: React.FC = () => {
         </div>
       ) : results && results.results?.length === 0 ? (
         <EmptyState
-          title={`No results for "${qParam}"`}
-          message="Check your spelling or try broader terms."
-          actionText="Clear Search"
+          title={t('searchPage.noResults', { q: qParam })}
+          message={t('searchPage.noResultsBody')}
+          actionText={t('booksPage.clearSearch')}
           onAction={() => {
             setInputVal('');
             setSearchParams(new URLSearchParams());
@@ -137,9 +137,7 @@ export const SearchPage: React.FC = () => {
         />
       ) : results ? (
         <div className="search-results-list">
-          <p className="search-count-status">
-            Found <strong>{results.total}</strong> items matching "<em>{qParam}</em>"
-          </p>
+          <p className="search-count-status" dangerouslySetInnerHTML={{ __html: t('searchPage.found', { total: results.total, q: qParam }) }} />
 
           <div className="search-items-stack">
             {results.results.map((item: any, idx: number) => (
@@ -147,7 +145,7 @@ export const SearchPage: React.FC = () => {
                 <div className="res-meta-line">
                   <span className="res-type-badge">{item.result_type}</span>
                   {item.category && <span className="res-category">{item.category}</span>}
-                  {item.author_name && <span className="res-author">By {item.author_name}</span>}
+                  {item.author_name && <span className="res-author">{t('course.by')} {item.author_name}</span>}
                 </div>
 
                 <h3 className="res-title">
@@ -157,7 +155,7 @@ export const SearchPage: React.FC = () => {
                 {item.excerpt && <p className="res-excerpt">{item.excerpt}</p>}
 
                 <Link to={item.href} className="res-open-link">
-                  Open {item.result_type.toLowerCase()} →
+                  {t('searchPage.openType', { type: item.result_type.toLowerCase() })} →
                 </Link>
               </div>
             ))}

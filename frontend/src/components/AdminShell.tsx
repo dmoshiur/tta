@@ -1,78 +1,81 @@
 import React, { useState } from 'react';
 import { NavLink, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.tsx';
+import { BrandLogo } from '../components/BrandLogo.tsx';
+import { useI18n } from '../i18n/index.tsx';
 
 interface NavItem {
   to: string;
-  label: string;
+  labelKey: string;
   icon: string;
   end?: boolean;
 }
 interface NavGroup {
-  title: string;
+  titleKey: string;
   items: NavItem[];
 }
 
 const NAV_GROUPS: NavGroup[] = [
   {
-    title: 'Overview',
+    titleKey: 'adminNav.gOverview',
     items: [
-      { to: '/admin', label: 'Operations Center', icon: '🛰' , end: true },
-      { to: '/admin/analytics', label: 'Analytics & Performance', icon: '📈' },
+      { to: '/admin', labelKey: 'adminNav.opsCenter', icon: '🛰' , end: true },
+      { to: '/admin/analytics', labelKey: 'adminNav.analytics', icon: '📈' },
     ],
   },
   {
-    title: 'Learning & LMS',
+    titleKey: 'adminNav.gLms',
     items: [
-      { to: '/admin/r/courses', label: 'Courses', icon: '🎓' },
-      { to: '/admin/r/modules', label: 'Course Modules', icon: '🧩' },
-      { to: '/admin/r/lessons', label: 'Lessons', icon: '📖' },
-      { to: '/admin/r/assignments', label: 'Assignments', icon: '📝' },
+      { to: '/admin/r/courses', labelKey: 'adminNav.courses', icon: '🎓' },
+      { to: '/admin/r/modules', labelKey: 'adminNav.modules', icon: '🧩' },
+      { to: '/admin/r/lessons', labelKey: 'adminNav.lessons', icon: '📖' },
+      { to: '/admin/r/assignments', labelKey: 'adminNav.assignments', icon: '📝' },
     ],
   },
   {
-    title: 'Assessments',
+    titleKey: 'adminNav.gAssess',
     items: [
-      { to: '/admin/r/quizzes', label: 'Quizzes & Model Tests', icon: '✍️' },
-      { to: '/admin/r/questions', label: 'Question Bank', icon: '❓' },
-      { to: '/admin/r/attempts', label: 'Attempt History', icon: '🧾' },
+      { to: '/admin/r/quizzes', labelKey: 'adminNav.quizzes', icon: '✍️' },
+      { to: '/admin/r/questions', labelKey: 'adminNav.questions', icon: '❓' },
+      { to: '/admin/r/attempts', labelKey: 'adminNav.attempts', icon: '🧾' },
     ],
   },
   {
-    title: 'Editorial & Library',
+    titleKey: 'adminNav.gEditorial',
     items: [
-      { to: '/admin/r/content', label: 'Articles & Sections', icon: '✒️' },
-      { to: '/admin/r/books', label: 'Books & Summaries', icon: '📚' },
-      { to: '/admin/r/categories', label: 'Taxonomy', icon: '🏷️' },
+      { to: '/admin/r/content', labelKey: 'adminNav.content', icon: '✒️' },
+      { to: '/admin/r/books', labelKey: 'adminNav.books', icon: '📚' },
+      { to: '/admin/r/categories', labelKey: 'adminNav.taxonomy', icon: '🏷️' },
     ],
   },
   {
-    title: 'People & Community',
+    titleKey: 'adminNav.gPeople',
     items: [
-      { to: '/admin/users', label: 'User Directory', icon: '👥' },
-      { to: '/admin/roles', label: 'Roles & Permissions', icon: '🛡️' },
-      { to: '/admin/r/contacts', label: 'Contact Messages', icon: '✉️' },
-      { to: '/admin/r/subscribers', label: 'Subscribers', icon: '📬' },
+      { to: '/admin/users', labelKey: 'adminNav.users', icon: '👥' },
+      { to: '/admin/roles', labelKey: 'adminNav.roles', icon: '🛡️' },
+      { to: '/admin/r/contacts', labelKey: 'adminNav.contacts', icon: '✉️' },
+      { to: '/admin/r/subscribers', labelKey: 'adminNav.subscribers', icon: '📬' },
     ],
   },
   {
-    title: 'System',
+    titleKey: 'adminNav.gSystem',
     items: [
-      { to: '/admin/media', label: 'Media Library', icon: '🖼️' },
-      { to: '/admin/settings', label: 'Site Settings', icon: '⚙️' },
+      { to: '/admin/media', labelKey: 'adminNav.media', icon: '🖼️' },
+      { to: '/admin/settings', labelKey: 'adminNav.siteSettings', icon: '⚙️' },
     ],
   },
 ];
 
 export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
+  const { t } = useI18n();
   const location = useLocation();
   const [sideOpen, setSideOpen] = useState(false);
 
-  const currentLabel =
-    NAV_GROUPS.flatMap((g) => g.items).find((i) =>
-      i.end ? location.pathname === i.to : location.pathname.startsWith(i.to)
-    )?.label || 'Admin Console';
+  const currentItem = NAV_GROUPS.flatMap((g) => g.items).find((i) =>
+    i.end ? location.pathname === i.to : location.pathname.startsWith(i.to)
+  );
+  const currentLabel = currentItem ? t(currentItem.labelKey) : t('adminNav.console');
 
   return (
     <div className="admin-shell">
@@ -80,19 +83,15 @@ export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }
       {sideOpen && <div className="admin-side-backdrop" onClick={() => setSideOpen(false)} />}
       <aside className={`admin-sidebar ${sideOpen ? 'open' : ''}`}>
         <div className="admin-side-brand">
-          <Link to="/" className="brand-logo light" onClick={() => setSideOpen(false)}>
-            <img src="/icon.svg" alt="" className="brand-monogram-img" />
-            <div className="brand-text">
-              <span className="brand-name">ThinkTank</span>
-              <span className="brand-sub">ADMIN CONSOLE</span>
-            </div>
+          <Link to="/" className="brand-logo" onClick={() => setSideOpen(false)} aria-label={t('a11y.home')}>
+            <BrandLogo surface="dark" />
           </Link>
         </div>
 
-        <nav className="admin-side-nav" aria-label="Admin Navigation">
+        <nav className="admin-side-nav" aria-label={t('a11y.adminNavLabel')}>
           {NAV_GROUPS.map((group) => (
-            <div className="admin-side-group" key={group.title}>
-              <p className="admin-side-title">{group.title}</p>
+            <div className="admin-side-group" key={group.titleKey}>
+              <p className="admin-side-title">{t(group.titleKey)}</p>
               {group.items.map((item) => (
                 <NavLink
                   key={item.to}
@@ -104,7 +103,7 @@ export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }
                   }
                 >
                   <span className="admin-side-icon" aria-hidden="true">{item.icon}</span>
-                  {item.label}
+                  {t(item.labelKey)}
                 </NavLink>
               ))}
             </div>
@@ -113,10 +112,10 @@ export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }
 
         <div className="admin-side-footer">
           <Link to="/" className="admin-exit-link">
-            ← Exit to Public Site
+            ← {t('adminNav.exitToSite')}
           </Link>
           <Link to="/dashboard" className="admin-exit-link subtle">
-            Learner Dashboard
+            {t('adminNav.learnerDashboard')}
           </Link>
         </div>
       </aside>
@@ -127,7 +126,7 @@ export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }
           <button
             className="admin-menu-toggle"
             onClick={() => setSideOpen(true)}
-            aria-label="Open admin navigation"
+            aria-label={t('adminNav.openMenu')}
           >
             ☰
           </button>

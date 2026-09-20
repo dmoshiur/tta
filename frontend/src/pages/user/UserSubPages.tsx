@@ -3,12 +3,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { learningApi, discoveryApi, userApi } from '../../api.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useToast } from '../../context/ToastContext.tsx';
+import { useI18n } from '../../i18n/index.tsx';
 import type { Bookmark, Notification } from '../../types/index.ts';
 import { LoadingState, EmptyState } from '../../components/States.tsx';
 
 // ── MY LEARNING PAGE ────────────────────────────────────────────────────────
 
 export const MyLearningPage: React.FC = () => {
+  const { t } = useI18n();
   const [courses, setCourses] = useState<any[]>([]);
   const [tab, setTab] = useState<'all' | 'in_progress' | 'completed'>('in_progress');
   const [loading, setLoading] = useState(true);
@@ -30,30 +32,30 @@ export const MyLearningPage: React.FC = () => {
   return (
     <div className="page-container user-hub-page">
       <header className="page-header">
-        <p className="page-eyebrow">CONTINUOUS PROGRESSION</p>
-        <h1 className="page-title">My Learning Library</h1>
-        <p className="page-lead">Every course you have enrolled in, with tracked lesson completion.</p>
+        <p className="page-eyebrow">{t('user.myLearning.eyebrow')}</p>
+        <h1 className="page-title">{t('user.myLearning.title')}</h1>
+        <p className="page-lead">{t('user.myLearning.lead')}</p>
 
         <div className="catalog-filters-bar">
           <button className={`filter-pill ${tab === 'in_progress' ? 'active' : ''}`} onClick={() => setTab('in_progress')}>
-            In Progress ({inProgress.length})
+            {t('user.myLearning.inProgress')} ({inProgress.length})
           </button>
           <button className={`filter-pill ${tab === 'completed' ? 'active' : ''}`} onClick={() => setTab('completed')}>
-            Completed ({completed.length})
+            {t('user.myLearning.completed')} ({completed.length})
           </button>
           <button className={`filter-pill ${tab === 'all' ? 'active' : ''}`} onClick={() => setTab('all')}>
-            All ({courses.length})
+            {t('user.myLearning.all')} ({courses.length})
           </button>
         </div>
       </header>
 
       {loading ? (
-        <LoadingState message="Loading your courses…" />
+        <LoadingState message={t('user.myLearning.loading')} />
       ) : visible.length === 0 ? (
         <EmptyState
-          title={tab === 'completed' ? 'No completed courses yet' : 'No enrolled courses'}
-          message={tab === 'completed' ? 'Complete every lesson in a course to earn completion status.' : 'Browse the course catalog to start learning.'}
-          actionText="Explore Courses"
+          title={tab === 'completed' ? t('user.myLearning.emptyCompletedTitle') : t('user.myLearning.emptyAllTitle')}
+          message={tab === 'completed' ? t('user.myLearning.emptyCompletedBody') : t('user.myLearning.emptyAllBody')}
+          actionText={t('user.myLearning.explore')}
           actionHref="/courses"
         />
       ) : (
@@ -68,7 +70,7 @@ export const MyLearningPage: React.FC = () => {
                     <div className="progress-fill" style={{ width: `${c.progress}%` }} />
                   </div>
                   <span className="progress-pct-text">
-                    {c.progress}% ({c.completed_lessons}/{c.total_lessons} lessons)
+                    {c.progress}% ({t('user.myLearning.lessonsDone', { done: c.completed_lessons, total: c.total_lessons })})
                   </span>
                 </div>
               </div>
@@ -76,9 +78,9 @@ export const MyLearningPage: React.FC = () => {
               <div className="continue-actions">
                 <Link
                   to={c.last_lesson_id ? `/lessons/${c.last_lesson_id}` : `/courses/${c.slug}`}
-                  className="btn-primary-sm"
+                  className="btn-primary-sm btn-shine"
                 >
-                  {c.completed ? 'Review Course →' : 'Continue Lesson →'}
+                  {c.completed ? t('user.myLearning.review') : t('user.myLearning.continueLesson')}
                 </Link>
               </div>
             </div>
@@ -92,6 +94,7 @@ export const MyLearningPage: React.FC = () => {
 // ── BOOKMARKS PAGE ──────────────────────────────────────────────────────────
 
 export const BookmarksPage: React.FC = () => {
+  const { t } = useI18n();
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [typeFilter, setTypeFilter] = useState('');
   const [loading, setLoading] = useState(true);
@@ -112,36 +115,48 @@ export const BookmarksPage: React.FC = () => {
     try {
       await discoveryApi.removeBookmark(type, id);
       setBookmarks((prev) => prev.filter((b) => !(b.item_type === type && b.item_id === id)));
-      toast.info('Bookmark removed');
+      toast.info(t('user.bookmarks.removed'));
     } catch {
-      toast.error('Could not remove bookmark');
+      toast.error(t('user.bookmarks.removeFail'));
     }
   };
+
+  const filters: { id: string; key: string }[] = [
+    { id: '', key: 'all' },
+    { id: 'COURSE', key: 'courses' },
+    { id: 'ARTICLE', key: 'articles' },
+    { id: 'BOOK', key: 'books' },
+    { id: 'QUIZ', key: 'quizzes' },
+    { id: 'LESSON', key: 'lessons' },
+  ];
 
   return (
     <div className="page-container user-hub-page">
       <header className="page-header">
-        <p className="page-eyebrow">PERSONAL COLLECTION</p>
-        <h1 className="page-title">Saved Bookmarks</h1>
-        <p className="page-lead">Courses, articles, books, quizzes, and lessons you have saved for reference.</p>
+        <p className="page-eyebrow">{t('user.bookmarks.eyebrow')}</p>
+        <h1 className="page-title">{t('user.bookmarks.title')}</h1>
+        <p className="page-lead">{t('user.bookmarks.lead')}</p>
 
         <div className="catalog-filters-bar">
-          <button className={`filter-pill ${!typeFilter ? 'active' : ''}`} onClick={() => setTypeFilter('')}>All</button>
-          <button className={`filter-pill ${typeFilter === 'COURSE' ? 'active' : ''}`} onClick={() => setTypeFilter('COURSE')}>Courses</button>
-          <button className={`filter-pill ${typeFilter === 'ARTICLE' ? 'active' : ''}`} onClick={() => setTypeFilter('ARTICLE')}>Articles</button>
-          <button className={`filter-pill ${typeFilter === 'BOOK' ? 'active' : ''}`} onClick={() => setTypeFilter('BOOK')}>Books</button>
-          <button className={`filter-pill ${typeFilter === 'QUIZ' ? 'active' : ''}`} onClick={() => setTypeFilter('QUIZ')}>Quizzes</button>
-          <button className={`filter-pill ${typeFilter === 'LESSON' ? 'active' : ''}`} onClick={() => setTypeFilter('LESSON')}>Lessons</button>
+          {filters.map((f) => (
+            <button
+              key={f.id || 'all'}
+              className={`filter-pill ${typeFilter === f.id ? 'active' : ''}`}
+              onClick={() => setTypeFilter(f.id)}
+            >
+              {t(`user.bookmarks.${f.key}`)}
+            </button>
+          ))}
         </div>
       </header>
 
       {loading ? (
-        <LoadingState message="Loading bookmarks…" />
+        <LoadingState message={t('user.bookmarks.loading')} />
       ) : bookmarks.length === 0 ? (
         <EmptyState
-          title="No bookmarks saved"
-          message="Click the save button on any course, article, or book to build your personal reading list."
-          actionText="Browse Knowledge"
+          title={t('user.bookmarks.emptyTitle')}
+          message={t('user.bookmarks.emptyBody')}
+          actionText={t('user.bookmarks.browse')}
           actionHref="/knowledge"
         />
       ) : (
@@ -152,25 +167,27 @@ export const BookmarksPage: React.FC = () => {
                 <span className="bm-type-badge">{bm.item_type}</span>
                 <h3>
                   {bm.item?.href ? (
-                    <Link to={bm.item.href}>{bm.item.title || 'Saved item'}</Link>
+                    <Link to={bm.item.href}>{bm.item.title || t('user.bookmarks.savedItem')}</Link>
                   ) : (
                     <span>{bm.item_id}</span>
                   )}
                 </h3>
                 {bm.item?.excerpt && <p className="bm-excerpt">{bm.item.excerpt}</p>}
-                <small className="bm-date">Saved on {new Date(bm.created_at).toLocaleDateString()}</small>
+                <small className="bm-date">
+                  {t('user.bookmarks.savedOn', { date: new Date(bm.created_at).toLocaleDateString() })}
+                </small>
               </div>
 
               <div className="bookmark-actions">
                 {bm.item?.href && (
-                  <Link to={bm.item.href} className="btn-secondary-sm">Open →</Link>
+                  <Link to={bm.item.href} className="btn-secondary-sm">{t('user.bookmarks.open')}</Link>
                 )}
                 <button
                   onClick={() => handleRemove(bm.item_type, bm.item_id)}
                   className="btn-danger-sm"
-                  title="Remove from bookmarks"
+                  title={t('user.bookmarks.removeTitle')}
                 >
-                  Remove ✕
+                  {t('user.bookmarks.remove')}
                 </button>
               </div>
             </div>
@@ -185,6 +202,7 @@ export const BookmarksPage: React.FC = () => {
 
 export const ProfilePage: React.FC = () => {
   const { user, updateUser } = useAuth();
+  const { t } = useI18n();
   const toast = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -199,9 +217,9 @@ export const ProfilePage: React.FC = () => {
     setSaving(true);
     try {
       await updateUser({ name, headline, bio });
-      toast.success('Profile updated successfully!');
+      toast.success(t('user.profile.updated'));
     } catch (err: any) {
-      toast.error(err.message || 'Failed to update profile.');
+      toast.error(err.message || t('user.profile.updateFail'));
     } finally {
       setSaving(false);
     }
@@ -214,9 +232,9 @@ export const ProfilePage: React.FC = () => {
     try {
       const res = await userApi.uploadAvatar(file);
       await updateUser({ avatar_url: res.url });
-      toast.success('Avatar uploaded successfully!');
+      toast.success(t('user.profile.avatarOk'));
     } catch (err: any) {
-      toast.error(err.message || 'Avatar upload failed.');
+      toast.error(err.message || t('user.profile.avatarFail'));
     } finally {
       setUploadingAvatar(false);
     }
@@ -225,9 +243,9 @@ export const ProfilePage: React.FC = () => {
   return (
     <div className="page-container user-hub-page">
       <header className="page-header">
-        <p className="page-eyebrow">ACCOUNT INFORMATION</p>
-        <h1 className="page-title">Personal Profile</h1>
-        <p className="page-lead">Manage your public information and avatar photo.</p>
+        <p className="page-eyebrow">{t('user.profile.eyebrow')}</p>
+        <h1 className="page-title">{t('user.profile.title')}</h1>
+        <p className="page-lead">{t('user.profile.lead')}</p>
       </header>
 
       <div className="profile-form-layout">
@@ -247,7 +265,7 @@ export const ProfilePage: React.FC = () => {
             disabled={uploadingAvatar}
             className="btn-secondary-sm"
           >
-            {uploadingAvatar ? 'Uploading…' : 'Upload New Photo'}
+            {uploadingAvatar ? t('user.profile.uploading') : t('user.profile.upload')}
           </button>
           <input
             ref={fileInputRef}
@@ -256,18 +274,18 @@ export const ProfilePage: React.FC = () => {
             onChange={handleAvatarFile}
             style={{ display: 'none' }}
           />
-          <small className="avatar-help">JPG, PNG, or WebP up to 5 MB</small>
+          <small className="avatar-help">{t('user.profile.avatarHelp')}</small>
         </div>
 
         {/* Profile edit form */}
         <form onSubmit={handleSave} className="profile-edit-form">
           <label className="form-field">
-            <span>Email Address (read-only)</span>
+            <span>{t('user.profile.emailReadonly')}</span>
             <input type="email" value={user?.email || ''} disabled className="readonly-input" />
           </label>
 
           <label className="form-field">
-            <span>Full Name</span>
+            <span>{t('user.profile.fullName')}</span>
             <input
               type="text"
               required
@@ -278,29 +296,29 @@ export const ProfilePage: React.FC = () => {
           </label>
 
           <label className="form-field">
-            <span>Headline / Professional Title</span>
+            <span>{t('user.profile.headline')}</span>
             <input
               type="text"
               maxLength={120}
               value={headline}
               onChange={(e) => setHeadline(e.target.value)}
-              placeholder="e.g. Economics student & curious thinker"
+              placeholder={t('user.profile.headlinePh')}
             />
           </label>
 
           <label className="form-field">
-            <span>Short Bio</span>
+            <span>{t('user.profile.bio')}</span>
             <textarea
               rows={4}
               maxLength={800}
               value={bio}
               onChange={(e) => setBio(e.target.value)}
-              placeholder="Tell other learners about your interests…"
+              placeholder={t('user.profile.bioPh')}
             />
           </label>
 
-          <button type="submit" disabled={saving} className="btn-primary">
-            {saving ? 'Saving changes…' : 'Save Profile Changes'}
+          <button type="submit" disabled={saving} className="btn-primary btn-shine">
+            {saving ? t('user.profile.saving') : t('user.profile.save')}
           </button>
         </form>
       </div>
@@ -312,6 +330,7 @@ export const ProfilePage: React.FC = () => {
 
 export const SettingsPage: React.FC = () => {
   const { user, logout } = useAuth();
+  const { t } = useI18n();
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -327,22 +346,22 @@ export const SettingsPage: React.FC = () => {
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
-      toast.error('New passwords do not match.');
+      toast.error(t('user.settings.mismatch'));
       return;
     }
     if (newPassword.length < 8) {
-      toast.error('Password must be at least 8 characters long.');
+      toast.error(t('auth.passwordRule'));
       return;
     }
     setPassSaving(true);
     try {
       await userApi.changePassword({ currentPassword, newPassword });
-      toast.success('Your password has been changed successfully.');
+      toast.success(t('user.settings.updated'));
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (err: any) {
-      toast.error(err.message || 'Failed to update password.');
+      toast.error(err.message || t('user.settings.updateFail'));
     } finally {
       setPassSaving(false);
     }
@@ -350,17 +369,17 @@ export const SettingsPage: React.FC = () => {
 
   const handleDeleteAccount = async () => {
     if (!deletePass) {
-      toast.error('Enter your password to confirm account deletion.');
+      toast.error(t('user.settings.noPassword'));
       return;
     }
     setDeleting(true);
     try {
       await userApi.deleteAccount(deletePass);
-      toast.info('Your account has been deleted.');
+      toast.info(t('user.settings.deleted'));
       await logout();
       navigate('/');
     } catch (err: any) {
-      toast.error(err.message || 'Account deletion failed.');
+      toast.error(err.message || t('user.settings.deleteFail'));
       setDeleting(false);
     }
   };
@@ -368,18 +387,18 @@ export const SettingsPage: React.FC = () => {
   return (
     <div className="page-container user-hub-page">
       <header className="page-header">
-        <p className="page-eyebrow">PREFERENCES & SECURITY</p>
-        <h1 className="page-title">Account Settings</h1>
-        <p className="page-lead">Manage security, credentials, and account lifecycle.</p>
+        <p className="page-eyebrow">{t('user.settings.eyebrow')}</p>
+        <h1 className="page-title">{t('user.settings.title')}</h1>
+        <p className="page-lead">{t('user.settings.lead')}</p>
       </header>
 
       <div className="settings-stack">
         {/* Change password card */}
         <div className="settings-card">
-          <h2>Change Password</h2>
+          <h2>{t('user.settings.changePassword')}</h2>
           <form onSubmit={handlePasswordChange} className="standard-form">
             <label className="form-field">
-              <span>Current Password</span>
+              <span>{t('user.settings.current')}</span>
               <input
                 type="password"
                 required
@@ -389,7 +408,7 @@ export const SettingsPage: React.FC = () => {
             </label>
 
             <label className="form-field">
-              <span>New Password (min 8 chars)</span>
+              <span>{t('user.settings.newLabel')}</span>
               <input
                 type="password"
                 required
@@ -400,7 +419,7 @@ export const SettingsPage: React.FC = () => {
             </label>
 
             <label className="form-field">
-              <span>Confirm New Password</span>
+              <span>{t('user.settings.confirm')}</span>
               <input
                 type="password"
                 required
@@ -410,8 +429,8 @@ export const SettingsPage: React.FC = () => {
               />
             </label>
 
-            <button type="submit" disabled={passSaving} className="btn-primary">
-              {passSaving ? 'Updating…' : 'Update Password'}
+            <button type="submit" disabled={passSaving} className="btn-primary btn-shine">
+              {passSaving ? t('user.settings.updating') : t('user.settings.updateBtn')}
             </button>
           </form>
         </div>
@@ -419,27 +438,22 @@ export const SettingsPage: React.FC = () => {
         {/* Danger zone */}
         {user?.role === 'USER' && (
           <div className="settings-card danger-card">
-            <h2>Delete Account</h2>
-            <p>
-              Permanently delete your account and all associated enrollment records, lesson progress, and quiz history.
-              This action cannot be undone.
-            </p>
+            <h2>{t('user.settings.dangerTitle')}</h2>
+            <p>{t('user.settings.dangerDesc')}</p>
             <button onClick={() => setShowDeleteModal(true)} className="btn-danger">
-              Delete My Account
+              {t('user.settings.dangerBtn')}
             </button>
           </div>
         )}
       </div>
 
       {showDeleteModal && (
-        <div className="modal-backdrop" onClick={() => setShowDeleteModal(false)}>
-          <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
-            <h3 className="modal-title">Confirm Account Deletion</h3>
-            <p className="modal-desc">
-              Please enter your password to confirm permanent deletion of your account.
-            </p>
+        <div className="modal-backdrop" onClick={() => setShowDeleteModal(false)} role="presentation">
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+            <h3 className="modal-title" id="delete-modal-title">{t('user.settings.modalTitle')}</h3>
+            <p className="modal-desc">{t('user.settings.modalDesc')}</p>
             <label className="form-field">
-              <span>Current Password</span>
+              <span>{t('user.settings.current')}</span>
               <input
                 type="password"
                 value={deletePass}
@@ -449,10 +463,10 @@ export const SettingsPage: React.FC = () => {
             </label>
             <div className="modal-actions">
               <button onClick={() => setShowDeleteModal(false)} className="btn-secondary">
-                Cancel
+                {t('user.settings.cancel')}
               </button>
               <button onClick={handleDeleteAccount} disabled={deleting} className="btn-danger">
-                {deleting ? 'Deleting…' : 'Confirm Permanent Deletion'}
+                {deleting ? t('user.settings.deleting') : t('user.settings.confirmDelete')}
               </button>
             </div>
           </div>
@@ -465,6 +479,7 @@ export const SettingsPage: React.FC = () => {
 // ── NOTIFICATIONS PAGE ──────────────────────────────────────────────────────
 
 export const NotificationsPage: React.FC = () => {
+  const { t } = useI18n();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const toast = useToast();
@@ -488,9 +503,9 @@ export const NotificationsPage: React.FC = () => {
     try {
       await discoveryApi.markAllNotificationsRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, read_at: new Date().toISOString() })));
-      toast.success('Marked all notifications as read');
+      toast.success(t('user.notifications.markedOk'));
     } catch {
-      toast.error('Failed to mark notifications read');
+      toast.error(t('user.notifications.markFail'));
     }
   };
 
@@ -498,9 +513,9 @@ export const NotificationsPage: React.FC = () => {
     try {
       await discoveryApi.deleteNotification(id);
       setNotifications((prev) => prev.filter((n) => n.id !== id));
-      toast.info('Notification dismissed');
+      toast.info(t('user.notifications.dismissed'));
     } catch {
-      toast.error('Could not dismiss notification');
+      toast.error(t('user.notifications.dismissFail'));
     }
   };
 
@@ -508,23 +523,23 @@ export const NotificationsPage: React.FC = () => {
     <div className="page-container user-hub-page">
       <header className="page-header split-header">
         <div>
-          <p className="page-eyebrow">IN-APP ALERTS</p>
-          <h1 className="page-title">Notifications</h1>
-          <p className="page-lead">Course announcements, quiz result confirmations, and system updates.</p>
+          <p className="page-eyebrow">{t('user.notifications.eyebrow')}</p>
+          <h1 className="page-title">{t('user.notifications.title')}</h1>
+          <p className="page-lead">{t('user.notifications.lead')}</p>
         </div>
         {notifications.some((n) => !n.read_at) && (
           <button onClick={handleMarkAllRead} className="btn-secondary-sm">
-            Mark All as Read ✓
+            {t('user.notifications.markAll')}
           </button>
         )}
       </header>
 
       {loading ? (
-        <LoadingState message="Loading notifications…" />
+        <LoadingState message={t('user.notifications.loading')} />
       ) : notifications.length === 0 ? (
         <EmptyState
-          title="No notifications"
-          message="You are all caught up! New course materials and quiz results will appear here."
+          title={t('user.notifications.emptyTitle')}
+          message={t('user.notifications.emptyBody')}
         />
       ) : (
         <div className="notifications-list-stack">
@@ -544,7 +559,7 @@ export const NotificationsPage: React.FC = () => {
                 <p>{n.message}</p>
                 {n.link && (
                   <Link to={n.link} className="notif-link">
-                    Open details →
+                    {t('user.notifications.openDetails')}
                   </Link>
                 )}
               </div>
@@ -553,7 +568,7 @@ export const NotificationsPage: React.FC = () => {
                 <button
                   onClick={() => handleDelete(n.id)}
                   className="notif-delete-btn"
-                  title="Dismiss"
+                  title={t('user.notifications.dismiss')}
                 >
                   ✕
                 </button>

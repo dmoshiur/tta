@@ -5,11 +5,13 @@ import { useAuth } from '../context/AuthContext.tsx';
 import { useToast } from '../context/ToastContext.tsx';
 import type { LessonDetail } from '../types/index.ts';
 import { LoadingState, ErrorState } from '../components/States.tsx';
+import { useI18n } from '../i18n/index.tsx';
 
 export const LessonPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const toast = useToast();
+  const { t } = useI18n();
   const navigate = useNavigate();
 
   const [lesson, setLesson] = useState<LessonDetail | null>(null);
@@ -28,14 +30,14 @@ export const LessonPage: React.FC = () => {
         setLoading(false);
       })
       .catch((err) => {
-        setError(err.message || 'Lesson not accessible.');
+        setError(err.message || t('lesson.notAccessible'));
         setLoading(false);
       });
   }, [id]);
 
   const handleToggleComplete = async () => {
     if (!user) {
-      toast.info('Sign in to save your learning progress.');
+      toast.info(t('lesson.signInProgress'));
       return;
     }
     if (!lesson) return;
@@ -45,14 +47,14 @@ export const LessonPage: React.FC = () => {
       if (lesson.completed) {
         await learningApi.uncompleteLesson(lesson.id);
         setLesson((prev) => (prev ? { ...prev, completed: false } : null));
-        toast.info('Marked as incomplete');
+        toast.info(t('lesson.markedIncomplete'));
       } else {
         const res = await learningApi.completeLesson(lesson.id);
         setLesson((prev) => (prev ? { ...prev, completed: true } : null));
-        toast.success(res.courseCompleted ? '🎉 Congratulations! You completed the course!' : '✓ Lesson completed!');
+        toast.success(res.courseCompleted ? `🎉 ${t('lesson.courseCompleteToast')}` : `✓ ${t('lesson.lessonCompleteToast')}`);
       }
     } catch (err: any) {
-      toast.error(err.message || 'Could not update progress.');
+      toast.error(err.message || t('lesson.progressFail'));
     } finally {
       setCompleting(false);
     }
@@ -60,7 +62,7 @@ export const LessonPage: React.FC = () => {
 
   const handleBookmark = async () => {
     if (!user) {
-      toast.info('Sign in to save bookmarks.');
+      toast.info(t('lesson.signInBookmark'));
       return;
     }
     if (!lesson) return;
@@ -68,26 +70,26 @@ export const LessonPage: React.FC = () => {
       if (bookmarked) {
         await discoveryApi.removeBookmark('LESSON', lesson.id);
         setBookmarked(false);
-        toast.info('Removed from bookmarks');
+        toast.info(t('courseDetail.unbookmarkedToast'));
       } else {
         await discoveryApi.addBookmark('LESSON', lesson.id);
         setBookmarked(true);
-        toast.success('Lesson bookmarked');
+        toast.success(t('lesson.bookmarkedToast'));
       }
     } catch (err: any) {
-      toast.error(err.message || 'Bookmark action failed.');
+      toast.error(err.message || t('courseDetail.bookmarkFail'));
     }
   };
 
-  if (loading) return <LoadingState message="Loading lesson materials…" />;
-  if (error || !lesson) return <ErrorState error={error || 'Lesson not found.'} onRetry={() => window.location.reload()} />;
+  if (loading) return <LoadingState message={t('lesson.loading')} />;
+  if (error || !lesson) return <ErrorState error={error || t('lesson.notFound')} onRetry={() => window.location.reload()} />;
 
   return (
     <div className="lesson-view-page">
       {/* Top Breadcrumb & Status Bar */}
       <div className="lesson-top-bar">
         <div className="lesson-breadcrumbs">
-          <Link to="/courses">Courses</Link>
+          <Link to="/courses">{t('nav.courses')}</Link>
           <span>/</span>
           <Link to={`/courses/${lesson.course.slug}`}>{lesson.course.title}</Link>
           <span>/</span>
@@ -98,13 +100,13 @@ export const LessonPage: React.FC = () => {
           <button
             onClick={handleBookmark}
             className={`btn-icon-action ${bookmarked ? 'active' : ''}`}
-            aria-label="Save bookmark"
-            title="Bookmark lesson"
+            aria-label={t('lesson.bookmarkTitle')}
+            title={t('lesson.bookmarkTitle')}
           >
             {bookmarked ? '★' : '☆'}
           </button>
           <Link to={`/courses/${lesson.course.slug}`} className="btn-secondary-sm">
-            ← Curriculum
+            ← {t('lesson.curriculum')}
           </Link>
         </div>
       </div>
@@ -115,8 +117,8 @@ export const LessonPage: React.FC = () => {
           <span className="lesson-module-tag">{lesson.module.title}</span>
           <h1 className="lesson-headline">{lesson.title}</h1>
           <div className="lesson-meta-row">
-            <span>⏱ {lesson.duration_minutes || 10} minutes</span>
-            {lesson.completed && <span className="lesson-completed-badge">✓ Completed</span>}
+            <span>⏱ {t('lesson.minutes', { n: lesson.duration_minutes || 10 })}</span>
+            {lesson.completed && <span className="lesson-completed-badge">✓ {t('lesson.completed')}</span>}
           </div>
         </header>
 
@@ -146,7 +148,7 @@ export const LessonPage: React.FC = () => {
         {/* Notes & Downloads if present */}
         {(lesson.notes || (lesson.attachments && lesson.attachments.length > 0)) && (
           <div className="lesson-resources-box">
-            <h3>Lesson Notes & References</h3>
+            <h3>{t('lesson.notes')}</h3>
             {lesson.notes && (
               <div
                 className="lesson-notes-content"
@@ -175,7 +177,7 @@ export const LessonPage: React.FC = () => {
               disabled={completing}
               className={`btn-complete-lesson ${lesson.completed ? 'is-completed' : ''}`}
             >
-              {completing ? 'Updating…' : lesson.completed ? '✓ Completed (Click to Undo)' : 'Mark as Complete'}
+              {completing ? t('lesson.updating') : lesson.completed ? `✓ ${t('lesson.completedUndo')}` : t('lesson.markComplete')}
             </button>
           </div>
 
@@ -194,7 +196,7 @@ export const LessonPage: React.FC = () => {
               </Link>
             ) : (
               <Link to={`/courses/${lesson.course.slug}`} className="btn-primary nav-btn">
-                Finish Course Overview →
+                {t('lesson.finishCourse')} →
               </Link>
             )}
           </div>

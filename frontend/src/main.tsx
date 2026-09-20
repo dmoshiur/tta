@@ -6,6 +6,7 @@ import './styles.css';
 
 import { AuthProvider, useAuth } from './context/AuthContext.tsx';
 import { ToastProvider } from './context/ToastContext.tsx';
+import { I18nProvider, useI18n } from './i18n/index.tsx';
 import { Header } from './components/Header.tsx';
 import { Footer } from './components/Footer.tsx';
 import { MobileBottomNav } from './components/MobileBottomNav.tsx';
@@ -72,14 +73,64 @@ const RouteObserver: React.FC = () => {
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <ToastProvider>
-          <RouteObserver />
-          <ScrollProgress />
-          <AppBody />
-        </ToastProvider>
-      </AuthProvider>
+      <I18nProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <RouteObserver />
+            <TitleObserver />
+            <ScrollProgress />
+            <AppBody />
+          </ToastProvider>
+        </AuthProvider>
+      </I18nProvider>
     </BrowserRouter>
+  );
+};
+
+// Lightweight per-route document titles (kept SEO-friendly, no library)
+const PAGE_TITLES: [RegExp, string][] = [
+  [/^\/$/, 'ThinkTank Academia — Learn • Think • Understand • Unite'],
+  [/^\/courses\//, 'Course — ThinkTank Academia'],
+  [/^\/courses$/, 'Courses — ThinkTank Academia'],
+  [/^\/lessons\//, 'Lesson — ThinkTank Academia'],
+  [/^\/job-prep$/, 'ThinkTank Job Prep'],
+  [/^\/academic$/, 'ThinkTank Academic'],
+  [/^\/books/, 'Books & Ideas — ThinkTank Academia'],
+  [/^\/knowledge$/, 'ThinkTank Knowledge'],
+  [/^\/world$/, 'ThinkTank World'],
+  [/^\/humanity$/, 'ThinkTank Humanity'],
+  [/^\/society$/, 'ThinkTank Society'],
+  [/^\/quizzes/, 'Quizzes & Model Tests — ThinkTank Academia'],
+  [/^\/articles$/, 'Articles — ThinkTank Academia'],
+  [/^\/read\//, 'Article — ThinkTank Academia'],
+  [/^\/search$/, 'Search — ThinkTank Academia'],
+  [/^\/login$/, 'Sign In — ThinkTank Academia'],
+  [/^\/register$/, 'Create Account — ThinkTank Academia'],
+  [/^\/dashboard$/, 'Dashboard — ThinkTank Academia'],
+  [/^\/admin/, 'Admin Console — ThinkTank Academia'],
+];
+
+const TitleObserver: React.FC = () => {
+  const location = useLocation();
+  useEffect(() => {
+    const match = PAGE_TITLES.find(([re]) => re.test(location.pathname));
+    if (match) document.title = match[1];
+  }, [location.pathname]);
+  return null;
+};
+
+// Localized 404 page
+const NotFoundPage: React.FC = () => {
+  const { t } = useI18n();
+  return (
+    <div className="page-container state-box not-found-box">
+      <p className="nf-code" aria-hidden="true">404</p>
+      <h1>{t('notFound.title')}</h1>
+      <p>{t('notFound.body')}</p>
+      <a href="/" className="btn-primary" style={{ marginTop: '1rem' }}>
+        {t('notFound.cta')}
+      </a>
+    </div>
   );
 };
 
@@ -94,7 +145,7 @@ const AppBody: React.FC = () => {
     <div className={`app-shell${isAdminArea ? ' admin-mode' : ''}`}>
       {!isAdminArea && <Header />}
 
-      <main className="main-viewport">
+      <main className="main-viewport" id="main-content">
         <Routes>
                 {/* ── Public Catalog & Informational Routes ── */}
                 <Route path="/" element={<HomePage />} />
@@ -151,18 +202,7 @@ const AppBody: React.FC = () => {
                 <Route path="/admin/r/:resource/:id" element={<AdminRoute><AdminResourceEditPage /></AdminRoute>} />
 
                 {/* ── 404 Fallback ── */}
-                <Route
-                  path="*"
-                  element={
-                    <div className="page-container state-box">
-                      <h2>Page Not Found</h2>
-                      <p>The page you requested could not be found.</p>
-                      <a href="/" className="btn-primary" style={{ marginTop: '1rem' }}>
-                        Return to Homepage
-                      </a>
-                    </div>
-                  }
-                />
+                <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>
 

@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { adminApi } from '../../api.ts';
 import { LoadingState, ErrorState } from '../../components/States.tsx';
+import { useI18n } from '../../i18n/index.tsx';
 
 export const AdminDashboardPage: React.FC = () => {
+  const { t } = useI18n();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -16,13 +18,13 @@ export const AdminDashboardPage: React.FC = () => {
         setLoading(false);
       })
       .catch((err) => {
-        setError(err.message || 'Failed to load admin metrics.');
+        setError(err.message || t('adminDash.loadFail'));
         setLoading(false);
       });
   }, []);
 
-  if (loading) return <LoadingState message="Loading administrative intelligence…" />;
-  if (error || !data) return <ErrorState error={error || 'Could not load admin hub.'} onRetry={() => window.location.reload()} />;
+  if (loading) return <LoadingState message={t('adminDash.loading')} />;
+  if (error || !data) return <ErrorState error={error || t('adminDash.loadFail')} onRetry={() => window.location.reload()} />;
 
   const { stats, recent_activity, recent_enrollments, recent_attempts } = data;
 
@@ -31,114 +33,112 @@ export const AdminDashboardPage: React.FC = () => {
       {/* Header */}
       <header className="admin-page-header">
         <div className="admin-header-title-wrap">
-          <span className="admin-security-pill">ADMINISTRATIVE CONSOLE</span>
-          <h1 className="admin-page-title">Platform Operations Center</h1>
-          <p className="admin-page-desc">
-            Full-stack management of curriculum, editorial content, user credentials, assessment engines, and analytics.
-          </p>
+          <span className="admin-security-pill">{t('adminDash.pill')}</span>
+          <h1 className="admin-page-title">{t('adminDash.title')}</h1>
+          <p className="admin-page-desc">{t('adminDash.desc')}</p>
         </div>
 
         <div className="admin-quick-nav">
-          <Link to="/admin/r/courses" className="btn-primary-sm">Manage Courses</Link>
-          <Link to="/admin/r/content" className="btn-primary-sm">Manage Articles</Link>
-          <Link to="/admin/r/quizzes" className="btn-primary-sm">Manage Quizzes</Link>
-          <Link to="/admin/media" className="btn-secondary-sm">Media Library</Link>
+          <Link to="/admin/r/courses" className="btn-primary-sm">{t('adminDash.manageCourses')}</Link>
+          <Link to="/admin/r/content" className="btn-primary-sm">{t('adminDash.manageArticles')}</Link>
+          <Link to="/admin/r/quizzes" className="btn-primary-sm">{t('adminDash.manageQuizzes')}</Link>
+          <Link to="/admin/media" className="btn-secondary-sm">{t('adminNav.media')}</Link>
         </div>
       </header>
 
       {/* Real Statistics Grid */}
       <div className="admin-stats-grid">
         <div className="admin-stat-card">
-          <span className="stat-label">Total Users</span>
+          <span className="stat-label">{t('adminDash.totalUsers')}</span>
           <strong className="stat-value">{stats.users}</strong>
-          <Link to="/admin/users" className="stat-action-link">Manage users →</Link>
+          <Link to="/admin/users" className="stat-action-link">{t('adminDash.manageUsers')} →</Link>
         </div>
 
         <div className="admin-stat-card">
-          <span className="stat-label">Courses</span>
+          <span className="stat-label">{t('adminDash.courses')}</span>
           <strong className="stat-value">{stats.courses}</strong>
-          <span className="stat-subdetail">{stats.published_courses} published ({stats.lessons} lessons)</span>
+          <span className="stat-subdetail">{t('adminDash.publishedLessons', { pub: stats.published_courses, lessons: stats.lessons })}</span>
         </div>
 
         <div className="admin-stat-card">
-          <span className="stat-label">Editorial Content</span>
+          <span className="stat-label">{t('adminDash.editorial')}</span>
           <strong className="stat-value">{stats.content}</strong>
-          <span className="stat-subdetail">Articles, Knowledge & World</span>
+          <span className="stat-subdetail">{t('adminDash.editorialSub')}</span>
         </div>
 
         <div className="admin-stat-card">
-          <span className="stat-label">Books Library</span>
+          <span className="stat-label">{t('adminDash.booksLib')}</span>
           <strong className="stat-value">{stats.books}</strong>
-          <Link to="/admin/r/books" className="stat-action-link">Manage books →</Link>
+          <Link to="/admin/r/books" className="stat-action-link">{t('adminDash.manageBooks')} →</Link>
         </div>
 
         <div className="admin-stat-card">
-          <span className="stat-label">Quizzes & Tests</span>
+          <span className="stat-label">{t('adminDash.quizzes')}</span>
           <strong className="stat-value">{stats.quizzes}</strong>
-          <span className="stat-subdetail">{stats.questions} questions in bank</span>
+          <span className="stat-subdetail">{t('adminDash.bankQ', { n: stats.questions })}</span>
         </div>
 
         <div className="admin-stat-card">
-          <span className="stat-label">Course Enrollments</span>
+          <span className="stat-label">{t('adminDash.enrollments')}</span>
           <strong className="stat-value">{stats.enrollments}</strong>
-          <span className="stat-subdetail">{stats.completed_enrollments} finished</span>
+          <span className="stat-subdetail">{t('adminDash.finished', { n: stats.completed_enrollments })}</span>
         </div>
 
         <div className="admin-stat-card">
-          <span className="stat-label">Quiz Submissions</span>
+          <span className="stat-label">{t('adminDash.submissions')}</span>
           <strong className="stat-value">{stats.attempts}</strong>
-          <Link to="/admin/analytics" className="stat-action-link">View analytics →</Link>
+          <Link to="/admin/analytics" className="stat-action-link">{t('adminDash.viewAnalytics')} →</Link>
         </div>
 
         <div className="admin-stat-card">
-          <span className="stat-label">Contact Inquiries</span>
+          <span className="stat-label">{t('adminDash.inquiries')}</span>
           <strong className="stat-value">{stats.pending_messages}</strong>
-          <Link to="/admin/r/contacts" className="stat-action-link">View messages →</Link>
+          <Link to="/admin/r/contacts" className="stat-action-link">{t('adminDash.viewMessages')} →</Link>
         </div>
       </div>
 
       {/* Navigation Directory Cards */}
       <section className="admin-directory-section">
-        <h2 className="admin-section-heading">Platform Resource Management</h2>
+        <h2 className="admin-section-heading">{t('adminDash.resourceMgmt')}</h2>
         <div className="admin-resource-cards">
           <div className="res-nav-card">
-            <h3>🎓 Learning & LMS</h3>
+            <h3>🎓 {t('adminNav.gLms')}</h3>
             <ul>
-              <li><Link to="/admin/r/courses">Courses ({stats.courses})</Link></li>
-              <li><Link to="/admin/r/modules">Course Modules ({stats.modules})</Link></li>
-              <li><Link to="/admin/r/lessons">Lessons ({stats.lessons})</Link></li>
-              <li><Link to="/admin/r/assignments">Assignments & Submissions</Link></li>
+              <li><Link to="/admin/r/courses">{t('adminNav.courses')} ({stats.courses})</Link></li>
+              <li><Link to="/admin/r/modules">{t('adminNav.modules')} ({stats.modules})</Link></li>
+              <li><Link to="/admin/r/lessons">{t('adminNav.lessons')} ({stats.lessons})</Link></li>
+              <li><Link to="/admin/r/assignments">{t('adminDash.assignments')}</Link></li>
             </ul>
           </div>
 
           <div className="res-nav-card">
-            <h3>✍ Assessments</h3>
+            <h3>✍ {t('adminNav.gAssess')}</h3>
             <ul>
-              <li><Link to="/admin/r/quizzes">Quizzes & Model Tests ({stats.quizzes})</Link></li>
-              <li><Link to="/admin/r/questions">MCQ Question Bank ({stats.questions})</Link></li>
-              <li><Link to="/admin/r/attempts">Learner Attempt History ({stats.attempts})</Link></li>
+              <li><Link to="/admin/r/quizzes">{t('adminNav.quizzes')} ({stats.quizzes})</Link></li>
+              <li><Link to="/admin/r/questions">{t('adminDash.questionBank')} ({stats.questions})</Link></li>
+              <li><Link to="/admin/r/attempts">{t('adminDash.attemptHistory')} ({stats.attempts})</Link></li>
             </ul>
           </div>
 
           <div className="res-nav-card">
-            <h3>📖 Editorial & Library</h3>
+            <h3>📖 {t('adminNav.gEditorial')}</h3>
             <ul>
-              <li><Link to="/admin/r/content">Articles & Sections ({stats.content})</Link></li>
-              <li><Link to="/admin/r/books">Books & Summaries ({stats.books})</Link></li>
-              <li><Link to="/admin/r/categories">Taxonomy Categories ({stats.categories})</Link></li>
+              <li><Link to="/admin/r/content">{t('adminNav.content')} ({stats.content})</Link></li>
+              <li><Link to="/admin/r/books">{t('adminNav.books')} ({stats.books})</Link></li>
+              <li><Link to="/admin/r/categories">{t('adminDash.taxonomy')} ({stats.categories})</Link></li>
             </ul>
           </div>
 
           <div className="res-nav-card">
-            <h3>⚙ Operations & Security</h3>
+            <h3>⚙ {t('adminDash.ops')}</h3>
             <ul>
-              <li><Link to="/admin/users">User Directory & Roles</Link></li>
-              <li><Link to="/admin/roles">Role Permissions Matrix</Link></li>
-              <li><Link to="/admin/settings">Homepage & Navigation Settings</Link></li>
-              <li><Link to="/admin/media">Media & File Library</Link></li>
-              <li><Link to="/admin/r/contacts">Contact Messages ({stats.pending_messages})</Link></li>
-              <li><Link to="/admin/r/subscribers">Newsletter Subscribers ({stats.subscribers})</Link></li>
-              <li><Link to="/admin/analytics">Analytics & Performance</Link></li>
+              <li><Link to="/admin/users">{t('adminDash.userDir')}</Link></li>
+              <li><Link to="/admin/roles">{t('adminDash.roleMatrix')}</Link></li>
+              <li><Link to="/admin/settings">{t('adminDash.siteSettings')}</Link></li>
+              <li><Link to="/admin/media">{t('adminDash.mediaLib')}</Link></li>
+              <li><Link to="/admin/r/contacts">{t('adminNav.contacts')} ({stats.pending_messages})</Link></li>
+              <li><Link to="/admin/r/subscribers">{t('adminDash.newsletterSubs')} ({stats.subscribers})</Link></li>
+              <li><Link to="/admin/analytics">{t('adminNav.analytics')}</Link></li>
             </ul>
           </div>
         </div>
@@ -149,16 +149,16 @@ export const AdminDashboardPage: React.FC = () => {
         {/* Enrollments table */}
         <div className="admin-table-panel">
           <div className="panel-header">
-            <h3>Recent Course Enrollments</h3>
-            <span className="panel-tag">{recent_enrollments?.length || 0} recent</span>
+            <h3>{t('adminDash.recentEnrollments')}</h3>
+            <span className="panel-tag">{t('adminDash.nRecent', { n: recent_enrollments?.length || 0 })}</span>
           </div>
           <div className="table-responsive">
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>Learner</th>
-                  <th>Course</th>
-                  <th>Date</th>
+                  <th>{t('adminDash.thLearner')}</th>
+                  <th>{t('adminDash.thCourse')}</th>
+                  <th>{t('adminDash.thDate')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -180,17 +180,17 @@ export const AdminDashboardPage: React.FC = () => {
         {/* Attempts table */}
         <div className="admin-table-panel">
           <div className="panel-header">
-            <h3>Recent Quiz Submissions</h3>
-            <span className="panel-tag">{recent_attempts?.length || 0} recent</span>
+            <h3>{t('adminDash.recentSubmissions')}</h3>
+            <span className="panel-tag">{t('adminDash.nRecent', { n: recent_attempts?.length || 0 })}</span>
           </div>
           <div className="table-responsive">
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>Learner</th>
-                  <th>Quiz</th>
-                  <th>Score</th>
-                  <th>Date</th>
+                  <th>{t('adminDash.thLearner')}</th>
+                  <th>{t('adminDash.thQuiz')}</th>
+                  <th>{t('adminDash.thScore')}</th>
+                  <th>{t('adminDash.thDate')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -214,17 +214,17 @@ export const AdminDashboardPage: React.FC = () => {
 
       {/* System Activity Log */}
       <section className="admin-activity-section">
-        <h2 className="admin-section-heading">Recent System Activity Audit Log</h2>
+        <h2 className="admin-section-heading">{t('adminDash.auditLog')}</h2>
         <div className="activity-timeline-card">
           <div className="table-responsive">
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>Actor</th>
-                  <th>Action</th>
-                  <th>Entity</th>
-                  <th>Label</th>
-                  <th>Timestamp</th>
+                  <th>{t('adminDash.thActor')}</th>
+                  <th>{t('adminDash.thAction')}</th>
+                  <th>{t('adminDash.thEntity')}</th>
+                  <th>{t('adminDash.thLabel')}</th>
+                  <th>{t('adminDash.thTimestamp')}</th>
                 </tr>
               </thead>
               <tbody>

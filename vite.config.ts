@@ -16,6 +16,7 @@ export default defineConfig({
     proxy: {
       '/api': apiTarget,
       '/uploads': apiTarget,
+      '/hackeradmin': apiTarget,
     },
   },
 });

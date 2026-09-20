@@ -4,9 +4,11 @@ import { learningApi } from '../../api.ts';
 import { useAuth } from '../../context/AuthContext.tsx';
 import type { DashboardData } from '../../types/index.ts';
 import { LoadingState, ErrorState } from '../../components/States.tsx';
+import { useI18n } from '../../i18n/index.tsx';
 
 export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
+  const { t } = useI18n();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -19,13 +21,13 @@ export const DashboardPage: React.FC = () => {
         setLoading(false);
       })
       .catch((err) => {
-        setError(err.message || 'Failed to load dashboard data.');
+        setError(err.message || t('dashboard.errorLoad'));
         setLoading(false);
       });
   }, []);
 
-  if (loading) return <LoadingState message="Loading your personal dashboard…" />;
-  if (error || !data) return <ErrorState error={error || 'Could not load dashboard.'} onRetry={() => window.location.reload()} />;
+  if (loading) return <LoadingState message={t('dashboard.loading')} />;
+  if (error || !data) return <ErrorState error={error || t('dashboard.errorLoad')} onRetry={() => window.location.reload()} />;
 
   const { stats, continue_learning, attempts, recently_viewed } = data;
 
@@ -34,19 +36,17 @@ export const DashboardPage: React.FC = () => {
       {/* Welcome Banner */}
       <div className="dashboard-banner">
         <div className="dash-banner-left">
-          <p className="dash-eyebrow">LEARNER DASHBOARD</p>
-          <h1 className="dash-welcome">Welcome back, {user?.name || 'Learner'}</h1>
-          <p className="dash-sub">
-            Track your course progression, review recent model test results, and resume your studies.
-          </p>
+          <p className="dash-eyebrow">{t('dashboard.eyebrow')}</p>
+          <h1 className="dash-welcome">{t('dashboard.welcome', { name: user?.name || t('dashboard.learner') })}</h1>
+          <p className="dash-sub">{t('dashboard.sub')}</p>
         </div>
 
         <div className="dash-banner-actions">
           <Link to="/courses" className="btn-primary">
-            Browse Courses
+            {t('dashboard.browseCourses')}
           </Link>
           <Link to="/quizzes" className="btn-secondary">
-            Take a Quiz
+            {t('dashboard.takeQuiz')}
           </Link>
         </div>
       </div>
@@ -55,38 +55,38 @@ export const DashboardPage: React.FC = () => {
       <div className="dash-metrics-grid">
         <div className="metric-card">
           <span className="metric-val">{stats.enrolled_courses}</span>
-          <span className="metric-lbl">Enrolled Courses</span>
-          <Link to="/my-learning" className="metric-sublink">View all →</Link>
+          <span className="metric-lbl">{t('dashboard.enrolled')}</span>
+          <Link to="/my-learning" className="metric-sublink">{t('dashboard.viewAll')} →</Link>
         </div>
 
         <div className="metric-card">
           <span className="metric-val">{stats.completed_lessons}</span>
-          <span className="metric-lbl">Completed Lessons</span>
-          <span className="metric-note">Real progress</span>
+          <span className="metric-lbl">{t('dashboard.completedLessons')}</span>
+          <span className="metric-note">{t('dashboard.realProgress')}</span>
         </div>
 
         <div className="metric-card">
           <span className="metric-val">{stats.completed_courses}</span>
-          <span className="metric-lbl">Finished Courses</span>
-          <span className="metric-note">Mastered paths</span>
+          <span className="metric-lbl">{t('dashboard.finishedCourses')}</span>
+          <span className="metric-note">{t('dashboard.masteredPaths')}</span>
         </div>
 
         <div className="metric-card">
           <span className="metric-val">{stats.quizzes_taken}</span>
-          <span className="metric-lbl">Quizzes Submitted</span>
-          <span className="metric-note">Evaluated tests</span>
+          <span className="metric-lbl">{t('dashboard.quizzesTaken')}</span>
+          <span className="metric-note">{t('dashboard.evaluatedTests')}</span>
         </div>
 
         <div className="metric-card">
           <span className="metric-val">{stats.best_percentage}%</span>
-          <span className="metric-lbl">Top Quiz Score</span>
-          <span className="metric-note">Personal record</span>
+          <span className="metric-lbl">{t('dashboard.topScore')}</span>
+          <span className="metric-note">{t('dashboard.personalRecord')}</span>
         </div>
 
         <div className="metric-card">
           <span className="metric-val">{stats.bookmarks}</span>
-          <span className="metric-lbl">Bookmarks</span>
-          <Link to="/bookmarks" className="metric-sublink">Saved items →</Link>
+          <span className="metric-lbl">{t('dashboard.bookmarks')}</span>
+          <Link to="/bookmarks" className="metric-sublink">{t('dashboard.savedItems')} →</Link>
         </div>
       </div>
 
@@ -96,15 +96,15 @@ export const DashboardPage: React.FC = () => {
         <div className="dashboard-main-col">
           <section className="dash-section-block">
             <div className="dash-block-header">
-              <h2>Continue Learning</h2>
-              <Link to="/my-learning">All Enrolled Courses ({stats.enrolled_courses}) →</Link>
+              <h2>{t('dashboard.continueLearning')}</h2>
+              <Link to="/my-learning">{t('dashboard.allEnrolled')} ({stats.enrolled_courses}) →</Link>
             </div>
 
             {continue_learning.length === 0 ? (
               <div className="dash-empty-prompt">
-                <p>You haven't enrolled in any courses yet.</p>
+                <p>{t('dashboard.noEnroll')}</p>
                 <Link to="/courses" className="btn-primary-sm">
-                  Explore Course Catalog →
+                  {t('dashboard.exploreCatalog')} →
                 </Link>
               </div>
             ) : (
@@ -121,7 +121,7 @@ export const DashboardPage: React.FC = () => {
                           <div className="progress-fill" style={{ width: `${c.progress}%` }} />
                         </div>
                         <span className="progress-pct-text">
-                          {c.progress}% ({c.completed_lessons}/{c.total_lessons} lessons)
+                          {c.progress}% ({t('user.myLearning.lessonsDone', { done: c.completed_lessons, total: c.total_lessons })})
                         </span>
                       </div>
                     </div>
@@ -131,7 +131,7 @@ export const DashboardPage: React.FC = () => {
                         to={c.last_lesson_id ? `/lessons/${c.last_lesson_id}` : `/courses/${c.slug}`}
                         className="btn-primary-sm"
                       >
-                        Resume →
+                        {t('dashboard.resume')} →
                       </Link>
                     </div>
                   </div>
@@ -143,15 +143,15 @@ export const DashboardPage: React.FC = () => {
           {/* Recent Quiz Attempts */}
           <section className="dash-section-block">
             <div className="dash-block-header">
-              <h2>Recent Quiz & Test Results</h2>
-              <Link to="/quizzes">Take a new quiz →</Link>
+              <h2>{t('dashboard.recentResults')}</h2>
+              <Link to="/quizzes">{t('dashboard.takeNew')} →</Link>
             </div>
 
             {attempts.length === 0 ? (
               <div className="dash-empty-prompt">
-                <p>No submitted quiz attempts yet.</p>
+                <p>{t('dashboard.noAttempts')}</p>
                 <Link to="/quizzes" className="btn-secondary-sm">
-                  Start Your First Practice Test →
+                  {t('dashboard.firstTest')} →
                 </Link>
               </div>
             ) : (
@@ -159,12 +159,12 @@ export const DashboardPage: React.FC = () => {
                 <table className="dash-table">
                   <thead>
                     <tr>
-                      <th>Quiz / Test</th>
-                      <th>Type</th>
-                      <th>Score</th>
-                      <th>Result</th>
-                      <th>Date</th>
-                      <th>Action</th>
+                      <th>{t('dashboard.thQuiz')}</th>
+                      <th>{t('dashboard.thType')}</th>
+                      <th>{t('dashboard.thScore')}</th>
+                      <th>{t('dashboard.thResult')}</th>
+                      <th>{t('dashboard.thDate')}</th>
+                      <th>{t('dashboard.thAction')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -183,15 +183,15 @@ export const DashboardPage: React.FC = () => {
                         </td>
                         <td>
                           <span className={`pass-badge ${att.passed ? 'passed' : 'failed'}`}>
-                            {att.passed ? 'Passed' : 'Review'}
+                            {att.passed ? t('dashboard.passed') : t('dashboard.reviewTag')}
                           </span>
                         </td>
                         <td>
-                          {att.submitted_at ? new Date(att.submitted_at).toLocaleDateString() : 'In progress'}
+                          {att.submitted_at ? new Date(att.submitted_at).toLocaleDateString() : t('dashboard.inProgress')}
                         </td>
                         <td>
                           <Link to={`/quiz-results/${att.id}`} className="btn-table-action">
-                            Review Answers →
+                            {t('dashboard.reviewAnswers')} →
                           </Link>
                         </td>
                       </tr>
@@ -207,20 +207,20 @@ export const DashboardPage: React.FC = () => {
         <aside className="dashboard-sidebar-col">
           {/* Quick Hub Links */}
           <div className="dash-sidebar-card">
-            <h3>Quick Actions</h3>
+            <h3>{t('dashboard.quickActions')}</h3>
             <ul className="dash-quick-links">
-              <li><Link to="/my-learning">📚 My Enrolled Courses</Link></li>
-              <li><Link to="/bookmarks">★ Saved Bookmarks</Link></li>
-              <li><Link to="/quizzes">✍ Practice Quizzes</Link></li>
-              <li><Link to="/profile">👤 Edit Profile</Link></li>
-              <li><Link to="/settings">⚙ Account Settings</Link></li>
+              <li><Link to="/my-learning">📚 {t('dashboard.myCourses')}</Link></li>
+              <li><Link to="/bookmarks">★ {t('dashboard.savedBookmarks')}</Link></li>
+              <li><Link to="/quizzes">✍ {t('dashboard.practiceQuizzes')}</Link></li>
+              <li><Link to="/profile">👤 {t('dashboard.editProfile')}</Link></li>
+              <li><Link to="/settings">⚙ {t('dashboard.accountSettings')}</Link></li>
             </ul>
           </div>
 
           {/* Recently Viewed */}
           {recently_viewed && recently_viewed.length > 0 && (
             <div className="dash-sidebar-card">
-              <h3>Recently Viewed</h3>
+              <h3>{t('dashboard.recentlyViewed')}</h3>
               <ul className="recent-views-list">
                 {recently_viewed.map((item: any, idx: number) => {
                   const href =

@@ -3,44 +3,41 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { useToast } from '../../context/ToastContext.tsx';
 import { authApi } from '../../api.ts';
+import { useI18n } from '../../i18n/index.tsx';
+import { BrandLogo } from '../../components/BrandLogo.tsx';
 
-/** Branded showcase panel shown beside the login / registration forms. */
-const AuthShowcase: React.FC = () => (
-  <aside className="auth-brand-panel" aria-hidden="true">
-    <Link to="/" className="brand-logo light" tabIndex={-1}>
-      <img src="/icon.svg" alt="" className="brand-monogram-img brand-monogram-lg" />
-      <div className="brand-text">
-        <span className="brand-name">ThinkTank</span>
-        <span className="brand-sub">ACADEMIA</span>
-      </div>
-    </Link>
+/** Branded showcase panel beside the auth forms — official dark-surface logo. */
+const AuthShowcase: React.FC = () => {
+  const { t } = useI18n();
+  return (
+    <aside className="auth-brand-panel" aria-hidden="true">
+      <Link to="/" tabIndex={-1}>
+        <BrandLogo surface="dark" />
+      </Link>
 
-    <h2 className="auth-panel-heading">
-      Learn • Think •<br />Understand • Unite
-    </h2>
-    <p className="auth-panel-lead">
-      A multidisciplinary home for structured courses, model tests, editorial
-      writing, and a library built for curious minds.
-    </p>
+      <h2 className="auth-panel-heading">{t('auth.showcaseHeading')}</h2>
+      <p className="auth-panel-lead">{t('auth.showcaseLead')}</p>
 
-    <ul className="auth-panel-points">
-      <li><span>✦</span> Structured courses with modules &amp; lessons</li>
-      <li><span>✦</span> Model tests with instant scoring &amp; analytics</li>
-      <li><span>✦</span> Editorial articles, books &amp; summaries</li>
-      <li><span>✦</span> Progress tracking, bookmarks &amp; notifications</li>
-    </ul>
+      <ul className="auth-panel-points">
+        <li><span>✦</span>{t('auth.point1')}</li>
+        <li><span>✦</span>{t('auth.point2')}</li>
+        <li><span>✦</span>{t('auth.point3')}</li>
+        <li><span>✦</span>{t('auth.point4')}</li>
+      </ul>
 
-    <figure className="auth-panel-quote">
-      <blockquote>“Education is the passport to the future.”</blockquote>
-      <figcaption>— The ThinkTank Ethos</figcaption>
-    </figure>
-  </aside>
-);
+      <figure className="auth-panel-quote">
+        <blockquote>{t('auth.quote')}</blockquote>
+        <figcaption>{t('auth.quoteBy')}</figcaption>
+      </figure>
+    </aside>
+  );
+};
 
 export const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [searchParams] = useSearchParams();
   const redirect = searchParams.get('redirect') || '/dashboard';
 
@@ -53,10 +50,10 @@ export const LoginPage: React.FC = () => {
     setLoading(true);
     try {
       await login(email, password);
-      toast.success('Welcome back to ThinkTank Academia!');
+      toast.success(t('auth.signInTitle'));
       navigate(redirect);
     } catch (err: any) {
-      toast.error(err.message || 'Login failed. Please check your credentials.');
+      toast.error(err.message || t('states.errorBody'));
     } finally {
       setLoading(false);
     }
@@ -68,35 +65,31 @@ export const LoginPage: React.FC = () => {
       <div className="auth-card">
         <div className="auth-header">
           <Link to="/" className="brand-logo" tabIndex={-1}>
-            <img src="/icon.svg" alt="" className="brand-monogram-img" />
-            <div className="brand-text">
-              <span className="brand-name">ThinkTank</span>
-              <span className="brand-sub">ACADEMIA</span>
-            </div>
+            <BrandLogo surface="light" />
           </Link>
-          <p className="auth-eyebrow">WELCOME BACK</p>
-          <h2>Sign In to Your Account</h2>
-          <p className="auth-lead">Continue your courses, review quizzes, and track your progress.</p>
+          <p className="auth-eyebrow">{t('auth.welcomeEyebrow')}</p>
+          <h2>{t('auth.signInTitle')}</h2>
+          <p className="auth-lead">{t('auth.signInLead')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="auth-form">
           <label className="form-field">
-            <span>Email Address</span>
+            <span>{t('auth.email')}</span>
             <input
               type="email"
               required
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder={t('auth.emailPlaceholder')}
             />
           </label>
 
           <label className="form-field">
             <div className="label-with-link">
-              <span>Password</span>
+              <span>{t('auth.password')}</span>
               <Link to="/forgot-password" tabIndex={-1} className="forgot-link">
-                Forgot password?
+                {t('auth.forgot')}
               </Link>
             </div>
             <input
@@ -109,15 +102,15 @@ export const LoginPage: React.FC = () => {
             />
           </label>
 
-          <button type="submit" disabled={loading} className="btn-primary auth-submit-btn">
-            {loading ? 'Signing in…' : 'Sign In →'}
+          <button type="submit" disabled={loading} className="btn-primary auth-submit-btn btn-shine">
+            {loading ? t('auth.signingIn') : `${t('auth.signInCta')} →`}
           </button>
         </form>
 
         <div className="auth-footer-prompt">
-          <span>Don't have an account yet?</span>
+          <span>{t('auth.noAccount')}</span>
           <Link to={`/register?redirect=${encodeURIComponent(redirect)}`} className="switch-auth-link">
-            Create an Account
+            {t('auth.createAccount')}
           </Link>
         </div>
       </div>
@@ -129,6 +122,7 @@ export const RegisterPage: React.FC = () => {
   const { register } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [searchParams] = useSearchParams();
   const redirect = searchParams.get('redirect') || '/dashboard';
 
@@ -140,16 +134,16 @@ export const RegisterPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password.length < 8) {
-      toast.error('Password must be at least 8 characters long.');
+      toast.error(t('auth.passwordRule'));
       return;
     }
     setLoading(true);
     try {
       await register(name, email, password);
-      toast.success('Your account has been created! Welcome to ThinkTank Academia.');
+      toast.success(t('auth.registerTitle'));
       navigate(redirect);
     } catch (err: any) {
-      toast.error(err.message || 'Registration failed.');
+      toast.error(err.message || t('states.errorBody'));
     } finally {
       setLoading(false);
     }
@@ -161,20 +155,16 @@ export const RegisterPage: React.FC = () => {
       <div className="auth-card">
         <div className="auth-header">
           <Link to="/" className="brand-logo" tabIndex={-1}>
-            <img src="/icon.svg" alt="" className="brand-monogram-img" />
-            <div className="brand-text">
-              <span className="brand-name">ThinkTank</span>
-              <span className="brand-sub">ACADEMIA</span>
-            </div>
+            <BrandLogo surface="light" />
           </Link>
-          <p className="auth-eyebrow">JOIN THE COMMUNITY</p>
-          <h2>Create Your Learner Account</h2>
-          <p className="auth-lead">Free access to structured courses, model tests, and editorial insights.</p>
+          <p className="auth-eyebrow">{t('auth.joinEyebrow')}</p>
+          <h2>{t('auth.registerTitle')}</h2>
+          <p className="auth-lead">{t('auth.registerLead')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="auth-form">
           <label className="form-field">
-            <span>Full Name</span>
+            <span>{t('auth.fullName')}</span>
             <input
               type="text"
               required
@@ -182,24 +172,24 @@ export const RegisterPage: React.FC = () => {
               autoComplete="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Maya Lin"
+              placeholder={t('auth.namePlaceholder')}
             />
           </label>
 
           <label className="form-field">
-            <span>Email Address</span>
+            <span>{t('auth.email')}</span>
             <input
               type="email"
               required
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder={t('auth.emailPlaceholder')}
             />
           </label>
 
           <label className="form-field">
-            <span>Password (minimum 8 characters)</span>
+            <span>{t('auth.passwordRule')}</span>
             <input
               type="password"
               required
@@ -212,18 +202,19 @@ export const RegisterPage: React.FC = () => {
           </label>
 
           <p className="terms-notice">
-            By registering, you agree to our <Link to="/terms">Terms</Link> and <Link to="/privacy">Privacy Policy</Link>.
+            {t('auth.termsNotice')} <Link to="/terms">{t('auth.terms')}</Link> {t('auth.and')}{' '}
+            <Link to="/privacy">{t('auth.privacy')}</Link>.
           </p>
 
-          <button type="submit" disabled={loading} className="btn-primary auth-submit-btn">
-            {loading ? 'Creating Account…' : 'Create Free Account →'}
+          <button type="submit" disabled={loading} className="btn-primary auth-submit-btn btn-shine">
+            {loading ? t('auth.creating') : `${t('auth.registerCta')} →`}
           </button>
         </form>
 
         <div className="auth-footer-prompt">
-          <span>Already registered?</span>
+          <span>{t('auth.haveAccount')}</span>
           <Link to={`/login?redirect=${encodeURIComponent(redirect)}`} className="switch-auth-link">
-            Sign In
+            {t('auth.signInCta')}
           </Link>
         </div>
       </div>
@@ -237,6 +228,7 @@ export const ForgotPasswordPage: React.FC = () => {
   const [submitted, setSubmitted] = useState(false);
   const [devLink, setDevLink] = useState<string | null>(null);
   const toast = useToast();
+  const { t } = useI18n();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -245,9 +237,9 @@ export const ForgotPasswordPage: React.FC = () => {
       const res = await authApi.forgotPassword(email);
       setSubmitted(true);
       if (res.devLink) setDevLink(res.devLink);
-      toast.success('Reset instructions sent.');
+      toast.success(t('auth.checkEmail'));
     } catch (err: any) {
-      toast.error(err.message || 'Could not send reset link.');
+      toast.error(err.message || t('states.errorBody'));
     } finally {
       setLoading(false);
     }
@@ -258,46 +250,46 @@ export const ForgotPasswordPage: React.FC = () => {
       <AuthShowcase />
       <div className="auth-card">
         <div className="auth-header">
-          <p className="auth-eyebrow">RECOVER ACCESS</p>
-          <h2>Reset Your Password</h2>
-          <p className="auth-lead">Enter your email and we will send a secure link to reset your password.</p>
+          <p className="auth-eyebrow">{t('auth.forgot')}</p>
+          <h2>{t('auth.forgotTitle')}</h2>
+          <p className="auth-lead">{t('auth.forgotLead')}</p>
         </div>
 
         {submitted ? (
           <div className="state-box success-box">
             <div className="success-icon">✓</div>
-            <h3>Check Your Email</h3>
-            <p>If an account exists for <strong>{email}</strong>, a password reset link has been dispatched.</p>
+            <h3>{t('auth.checkEmail')}</h3>
+            <p>{t('auth.emailBody', { email })}</p>
             {devLink && (
               <div className="dev-link-callout">
                 <small>Development environment quick reset:</small>
-                <a href={devLink}>Open Password Reset Form →</a>
+                <a href={devLink}>Open password reset form →</a>
               </div>
             )}
             <Link to="/login" className="btn-secondary" style={{ marginTop: '1rem' }}>
-              Return to Sign In
+              ← {t('auth.signInCta')}
             </Link>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="auth-form">
             <label className="form-field">
-              <span>Your Account Email</span>
+              <span>{t('auth.email')}</span>
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                placeholder={t('auth.emailPlaceholder')}
               />
             </label>
 
-            <button type="submit" disabled={loading} className="btn-primary auth-submit-btn">
-              {loading ? 'Sending link…' : 'Send Password Reset Link →'}
+            <button type="submit" disabled={loading} className="btn-primary auth-submit-btn btn-shine">
+              {loading ? '…' : `${t('auth.sendLink')} →`}
             </button>
 
             <div className="auth-footer-prompt">
               <Link to="/login" className="switch-auth-link">
-                ← Back to Sign In
+                ← {t('auth.backToSignIn')}
               </Link>
             </div>
           </form>
@@ -312,6 +304,7 @@ export const ResetPasswordPage: React.FC = () => {
   const token = searchParams.get('token') || '';
   const navigate = useNavigate();
   const toast = useToast();
+  const { t } = useI18n();
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -320,20 +313,20 @@ export const ResetPasswordPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
-      toast.error('Passwords do not match.');
+      toast.error(t('auth.mismatch'));
       return;
     }
     if (password.length < 8) {
-      toast.error('Password must be at least 8 characters.');
+      toast.error(t('auth.passwordRule'));
       return;
     }
     setLoading(true);
     try {
       await authApi.resetPassword({ token, password });
-      toast.success('Your password has been reset! Please sign in with your new password.');
+      toast.success(t('auth.resetSuccess'));
       navigate('/login');
     } catch (err: any) {
-      toast.error(err.message || 'Password reset failed. The link may have expired.');
+      toast.error(err.message || t('states.errorBody'));
     } finally {
       setLoading(false);
     }
@@ -343,9 +336,11 @@ export const ResetPasswordPage: React.FC = () => {
     return (
       <div className="auth-page-wrapper">
         <div className="auth-card">
-          <h2>Invalid Reset Link</h2>
-          <p>No reset token was found in the link. Please request a new link.</p>
-          <Link to="/forgot-password" className="btn-primary">Request New Link</Link>
+          <h2>{t('auth.invalidLink')}</h2>
+          <p>{t('auth.invalidLinkBody')}</p>
+          <Link to="/forgot-password" className="btn-primary">
+            {t('auth.requestNew')}
+          </Link>
         </div>
       </div>
     );
@@ -356,14 +351,14 @@ export const ResetPasswordPage: React.FC = () => {
       <AuthShowcase />
       <div className="auth-card">
         <div className="auth-header">
-          <p className="auth-eyebrow">CHOOSE NEW CREDENTIALS</p>
-          <h2>Set a New Password</h2>
-          <p className="auth-lead">Choose a strong, unique password for your ThinkTank account.</p>
+          <p className="auth-eyebrow">{t('auth.resetTitle')}</p>
+          <h2>{t('auth.resetTitle')}</h2>
+          <p className="auth-lead">{t('auth.resetLead')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="auth-form">
           <label className="form-field">
-            <span>New Password (min 8 characters)</span>
+            <span>{t('auth.passwordRule')}</span>
             <input
               type="password"
               required
@@ -375,7 +370,7 @@ export const ResetPasswordPage: React.FC = () => {
           </label>
 
           <label className="form-field">
-            <span>Confirm New Password</span>
+            <span>{t('auth.confirmPassword')}</span>
             <input
               type="password"
               required
@@ -386,8 +381,8 @@ export const ResetPasswordPage: React.FC = () => {
             />
           </label>
 
-          <button type="submit" disabled={loading} className="btn-primary auth-submit-btn">
-            {loading ? 'Saving…' : 'Update Password →'}
+          <button type="submit" disabled={loading} className="btn-primary auth-submit-btn btn-shine">
+            {loading ? '…' : `${t('actions.save')} →`}
           </button>
         </form>
       </div>
