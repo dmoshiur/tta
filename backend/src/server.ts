@@ -6,7 +6,7 @@ import cors from 'cors';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 
-import { config, isProduction, isTest } from './config.ts';
+import { config, isProduction, isTest, storageConfigured } from './config.ts';
 import { logger } from './lib/logger.ts';
 import { initPool, closePool, all } from './db/index.ts';
 import { seedDatabase } from './db/seed.ts';
@@ -16,6 +16,7 @@ import { requestLogger, pruneRequestLog } from './lib/request-logger.ts';
 import { siteGuard } from './lib/site-status.ts';
 import { ensurePasscode } from './services/hackeradmin.ts';
 import { HACKERADMIN_HTML } from './pages/hackeradmin.ts';
+import { checkGatewayHealth } from './lib/storage.ts';
 
 // Feature routers
 import { authRoutes } from './routes/auth.routes.ts';
@@ -26,6 +27,7 @@ import { contentRoutes } from './routes/content.routes.ts';
 import { discoveryRoutes } from './routes/discovery.routes.ts';
 import { adminRoutes } from './routes/admin.routes.ts';
 import { hackerAdminRoutes } from './routes/hackeradmin.routes.ts';
+import { mediaRoutes } from './routes/media.routes.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -166,6 +168,8 @@ app.use(siteGuard);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/admin', adminRoutes);
+// Permanent URLs for files kept on the Storage Gateway (redirects to fresh signed links)
+app.use('/api/v1/media', mediaRoutes);
 app.use('/api/v1', learningRoutes);
 app.use('/api/v1', quizRoutes);
 app.use('/api/v1', contentRoutes);
@@ -220,6 +224,23 @@ let tickCount = 0;
 export async function start(port = config.port) {
   await initPool();
   await seedDatabase();
+
+  // Media storage — announce the driver and probe the Storage Gateway once so a
+  // mis-set URL or revoked key shows up in the boot log, not on the first upload.
+  if (config.storage.driver === 'gateway') {
+    if (!storageConfigured) {
+      logger.error('storage: STORAGE_DRIVER=gateway but STORAGE_GATEWAY_URL / STORAGE_GATEWAY_KEY_SECRET are missing — uploads will fail');
+    } else if (!isTest) {
+      const health = await checkGatewayHealth();
+      if (health.ok) {
+        logger.info('storage: gateway ready', { url: config.storage.gateway.url, service: health.service, version: health.version, blobConfigured: health.blobConfigured });
+      } else {
+        logger.warn('storage: gateway health check failed — uploads may not work', { url: config.storage.gateway.url, status: health.status, error: health.error });
+      }
+    }
+  } else if (config.storage.driver === 'local' && isProduction) {
+    logger.warn('storage: STORAGE_DRIVER=local in production — uploaded files are lost on redeploy');
+  }
 
   // Issue (or keep) the current hacker-admin passcode and e-mail a new one
   // whenever the rotation window (default: 1 hour) elapses.

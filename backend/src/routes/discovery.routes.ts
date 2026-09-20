@@ -7,7 +7,7 @@ import { like, ok, pagination, parse, route } from '../lib/http.ts';
 import { fromJson, newId } from '../lib/util.ts';
 import { sanitizePlainText } from '../lib/sanitize.ts';
 import { authenticate, optionalAuth } from '../middleware/auth.ts';
-import { config } from '../config.ts';
+import { config, storagePersistent } from '../config.ts';
 import { SECTIONS } from '../db/taxonomy.ts';
 import { notify } from '../services/notifications.ts';
 
@@ -552,7 +552,7 @@ discoveryRoutes.get(
       version: '2.0.0',
       api: '/api/v1',
       publicUrl: config.publicUrl || null,
-      storage: { driver: config.storage.driver, persistent: config.storage.driver === 's3' },
+      storage: { driver: config.storage.driver, persistent: storagePersistent },
       mail: { configured: Boolean(config.smtp.host) },
       push: { configured: false },
       sections: SECTIONS.map((section) => ({ id: section.id, label: section.label, path: section.path })),
