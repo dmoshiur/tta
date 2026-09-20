@@ -10,6 +10,7 @@ import { Header } from './components/Header.tsx';
 import { Footer } from './components/Footer.tsx';
 import { MobileBottomNav } from './components/MobileBottomNav.tsx';
 import { ScrollProgress } from './components/ScrollProgress.tsx';
+import { AdminShell } from './components/AdminShell.tsx';
 import { discoveryApi } from './api.ts';
 
 // Public pages
@@ -51,8 +52,10 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isAdmin, loading } = useAuth();
   if (loading) return <div className="state-box"><div className="tta-spinner" /></div>;
   if (!user || !isAdmin) return <Navigate to="/dashboard" replace />;
-  return <>{children}</>;
+  return <AdminShell>{children}</AdminShell>;
 };
+
+
 
 // Analytics pageview reporter
 const RouteObserver: React.FC = () => {
@@ -73,11 +76,26 @@ export const App: React.FC = () => {
         <ToastProvider>
           <RouteObserver />
           <ScrollProgress />
-          <div className="app-shell">
-            <Header />
+          <AppBody />
+        </ToastProvider>
+      </AuthProvider>
+    </BrowserRouter>
+  );
+};
 
-            <main className="main-viewport">
-              <Routes>
+/**
+ * Site body. The public chrome (header / footer / bottom nav) is hidden
+ * inside the admin console, which ships its own full-screen shell.
+ */
+const AppBody: React.FC = () => {
+  const location = useLocation();
+  const isAdminArea = location.pathname.startsWith('/admin');
+  return (
+    <div className={`app-shell${isAdminArea ? ' admin-mode' : ''}`}>
+      {!isAdminArea && <Header />}
+
+      <main className="main-viewport">
+        <Routes>
                 {/* ── Public Catalog & Informational Routes ── */}
                 <Route path="/" element={<HomePage />} />
                 <Route path="/courses" element={<CoursesPage />} />
@@ -145,15 +163,12 @@ export const App: React.FC = () => {
                     </div>
                   }
                 />
-              </Routes>
-            </main>
+        </Routes>
+      </main>
 
-            <Footer />
-            <MobileBottomNav />
-          </div>
-        </ToastProvider>
-      </AuthProvider>
-    </BrowserRouter>
+      {!isAdminArea && <Footer />}
+      {!isAdminArea && <MobileBottomNav />}
+    </div>
   );
 };
 
