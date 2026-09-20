@@ -4,8 +4,11 @@ import { contentApi } from '../api.ts';
 import type { Book } from '../types/index.ts';
 import { BookCard } from '../components/BookCard.tsx';
 import { LoadingState, EmptyState, ErrorState } from '../components/States.tsx';
+import { RevealGroup } from '../components/Reveal.tsx';
+import { useI18n } from '../i18n/index.tsx';
 
 export const BooksPage: React.FC = () => {
+  const { t } = useI18n();
   const [searchParams, setSearchParams] = useSearchParams();
   const qParam = searchParams.get('q') || '';
   const [books, setBooks] = useState<Book[]>([]);
@@ -38,41 +41,41 @@ export const BooksPage: React.FC = () => {
   return (
     <div className="page-container books-catalog-page">
       <header className="page-header">
-        <p className="page-eyebrow">BOOKS & IDEAS</p>
-        <h1 className="page-title">Book Summaries & Big Ideas</h1>
-        <p className="page-lead">
-          Essential insights from foundational works in psychology, history, philosophy, and human thought — with context, practical applications, and critical reviews.
-        </p>
+        <p className="page-eyebrow">{t('booksPage.eyebrow')}</p>
+        <h1 className="page-title">{t('booksPage.title')}</h1>
+        <p className="page-lead">{t('booksPage.lead')}</p>
 
         <form onSubmit={handleSearch} className="catalog-search-form">
           <input
             type="search"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Search books by title, author, or concept…"
-            aria-label="Search books"
+            placeholder={t('booksPage.searchPlaceholder')}
+            aria-label={t('booksPage.searchPlaceholder')}
             className="catalog-search-input"
           />
-          <button type="submit" className="btn-primary search-btn">Search</button>
+          <button type="submit" className="btn-primary search-btn">{t('articlesPage.searchBtn')}</button>
         </form>
       </header>
 
       {loading ? (
-        <LoadingState message="Loading book library…" />
+        <LoadingState message={t('booksPage.loading')} />
       ) : error ? (
         <ErrorState error={error} onRetry={() => window.location.reload()} />
       ) : books.length === 0 ? (
         <EmptyState
-          title="No books match your search"
-          message="Try searching for another title, author, or topic."
-          actionText="Clear Search"
+          title={t('booksPage.emptyTitle')}
+          message={t('booksPage.emptyBody')}
+          actionText={t('booksPage.clearSearch')}
           onAction={() => { setSearchInput(''); setSearchParams(new URLSearchParams()); }}
         />
       ) : (
         <div className="cards-grid books-grid">
-          {books.map((book) => (
-            <BookCard key={book.id} book={book} />
-          ))}
+          <RevealGroup direction="up" stagger={90}>
+            {books.map((book) => (
+              <BookCard key={book.id} book={book} />
+            ))}
+          </RevealGroup>
         </div>
       )}
     </div>

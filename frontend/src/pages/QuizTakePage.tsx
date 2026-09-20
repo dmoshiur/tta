@@ -5,12 +5,14 @@ import { useAuth } from '../context/AuthContext.tsx';
 import { useToast } from '../context/ToastContext.tsx';
 import type { Question, QuizSummary } from '../types/index.ts';
 import { LoadingState, ErrorState } from '../components/States.tsx';
+import { useI18n } from '../i18n/index.tsx';
 
 export const QuizTakePage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const { user } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   const [quiz, setQuiz] = useState<QuizSummary | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -30,7 +32,7 @@ export const QuizTakePage: React.FC = () => {
   // Require login to take quiz
   useEffect(() => {
     if (!user) {
-      toast.info('Sign in to begin your examination and track results.');
+      toast.info(t('quizTake.signInHint'));
       navigate(`/login?redirect=/quizzes/${slug}`);
     }
   }, [user, slug, navigate, toast]);
@@ -52,11 +54,11 @@ export const QuizTakePage: React.FC = () => {
         }
         setLoading(false);
         if (res.resumed) {
-          toast.info('Resumed previous in-progress examination session.');
+          toast.info(t('quizTake.resumed'));
         }
       })
       .catch((err) => {
-        setError(err.message || 'Could not start examination.');
+        setError(err.message || t('quizTake.startFail'));
         setLoading(false);
       });
   }, [slug, user, toast]);
@@ -71,10 +73,10 @@ export const QuizTakePage: React.FC = () => {
 
     try {
       const res = await quizApi.submitAttempt(attemptId, answers);
-      toast.success('Examination submitted successfully!');
+      toast.success(t('quizTake.submitted'));
       navigate(`/quiz-results/${res.attempt_id || res.id}`);
     } catch (err: any) {
-      toast.error(err.message || 'Submission failed. Please try again.');
+      toast.error(err.message || t('quizTake.submitFail'));
       setSubmitting(false);
     }
   }, [attemptId, answers, submitting, navigate, toast]);
@@ -83,7 +85,7 @@ export const QuizTakePage: React.FC = () => {
   useEffect(() => {
     if (secondsLeft === null) return;
     if (secondsLeft <= 0) {
-      toast.info('Time has expired! Submitting your examination…');
+      toast.info(t('quizTake.timeExpired'));
       handleSubmit();
       return;
     }
@@ -137,9 +139,9 @@ export const QuizTakePage: React.FC = () => {
     });
   };
 
-  if (loading) return <LoadingState message="Setting up your examination session…" />;
+  if (loading) return <LoadingState message={t('quizTake.loading')} />;
   if (error || !quiz || questions.length === 0)
-    return <ErrorState error={error || 'No questions available.'} onRetry={() => window.location.reload()} />;
+    return <ErrorState error={error || t('quizTake.noQuestions')} onRetry={() => window.location.reload()} />;
 
   const currentQ = questions[currentIndex];
   const isMultiple = currentQ.kind === 'MULTIPLE';
@@ -177,7 +179,7 @@ export const QuizTakePage: React.FC = () => {
             disabled={submitting}
             className="btn-submit-exam"
           >
-            {submitting ? 'Submitting…' : 'Submit Examination'}
+            {submitting ? t('quizTake.submitting') : t('quizTake.submitExam')}
           </button>
         </div>
       </header>
@@ -188,11 +190,11 @@ export const QuizTakePage: React.FC = () => {
         <div className="test-question-canvas">
           <div className="question-header-row">
             <span className="q-number-pill">
-              Question {currentIndex + 1} of {questions.length}
+              {t('quizTake.questionOf', { n: currentIndex + 1, total: questions.length })}
             </span>
-            <span className="q-marks-pill">+{currentQ.marks} mark{currentQ.marks > 1 ? 's' : ''}</span>
+            <span className="q-marks-pill">{t('quizTake.marks', { n: currentQ.marks })}</span>
             {quiz.negative_mark > 0 && (
-              <span className="q-neg-pill">(-{quiz.negative_mark} on wrong)</span>
+              <span className="q-neg-pill">{t('quizTake.negative', { n: quiz.negative_mark })}</span>
             )}
           </div>
 
@@ -200,13 +202,13 @@ export const QuizTakePage: React.FC = () => {
             <h2 className="question-prompt-text">{currentQ.prompt}</h2>
             {isMultiple && (
               <p className="multiple-instruct">
-                (Multiple options may be correct — select all that apply)
+                {t('quizTake.multipleHint')}
               </p>
             )}
           </div>
 
           {/* Options List */}
-          <div className="options-stack" role="radiogroup" aria-label="Question options">
+          <div className="options-stack" role="radiogroup" aria-label={t('quizTake.optionsLabel')}>
             {currentQ.options.map((opt, oIdx) => {
               const isChecked = isMultiple
                 ? Array.isArray(selectedAnswer) && selectedAnswer.includes(oIdx)
@@ -247,7 +249,7 @@ export const QuizTakePage: React.FC = () => {
                   onClick={() => handleClearAnswer(currentQ.id)}
                   className="btn-clear-answer"
                 >
-                  Clear Selection
+                  {t('quizTake.clear')}
                 </button>
               )}
             </div>
@@ -258,7 +260,7 @@ export const QuizTakePage: React.FC = () => {
                 onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
                 className="btn-secondary-sm"
               >
-                ← Previous
+                ← {t('quizTake.prev')}
               </button>
 
               {currentIndex < questions.length - 1 ? (
@@ -266,14 +268,14 @@ export const QuizTakePage: React.FC = () => {
                   onClick={() => setCurrentIndex((prev) => Math.min(questions.length - 1, prev + 1))}
                   className="btn-primary-sm"
                 >
-                  Next Question →
+                  {t('quizTake.next')} →
                 </button>
               ) : (
                 <button
                   onClick={() => setShowConfirmModal(true)}
                   className="btn-primary-sm"
                 >
-                  Review & Submit →
+                  {t('quizTake.reviewSubmit')} →
                 </button>
               )}
             </div>
@@ -283,21 +285,21 @@ export const QuizTakePage: React.FC = () => {
         {/* Right Column: Question Navigator Palette */}
         <aside className="test-palette-aside">
           <div className="palette-stats-card">
-            <h3>Question Status</h3>
+            <h3>{t('quizTake.statusHeading')}</h3>
             <div className="palette-counters">
               <div className="counter-item answered">
                 <strong>{answeredCount}</strong>
-                <span>Answered</span>
+                <span>{t('quizTake.answered')}</span>
               </div>
               <div className="counter-item unanswered">
                 <strong>{unansweredCount}</strong>
-                <span>Unanswered</span>
+                <span>{t('quizTake.unanswered')}</span>
               </div>
             </div>
           </div>
 
           <div className="palette-grid-card">
-            <h4>Jump to Question</h4>
+            <h4>{t('quizTake.jumpTo')}</h4>
             <div className="palette-grid">
               {questions.map((q, idx) => {
                 const isAnswered = answers[q.id] !== undefined && answers[q.id] !== null;
@@ -307,7 +309,7 @@ export const QuizTakePage: React.FC = () => {
                     key={q.id}
                     onClick={() => setCurrentIndex(idx)}
                     className={`palette-num-btn ${isAnswered ? 'answered' : ''} ${isCurrent ? 'current' : ''}`}
-                    aria-label={`Question ${idx + 1} ${isAnswered ? 'answered' : 'unanswered'}`}
+                    aria-label={t('quizTake.paletteLabel', { n: idx + 1, state: isAnswered ? t('quizTake.answered') : t('quizTake.unanswered') })}
                   >
                     {idx + 1}
                   </button>
@@ -318,7 +320,7 @@ export const QuizTakePage: React.FC = () => {
 
           <div className="palette-info-card">
             <p className="info-text">
-              Answers are automatically saved. You can freely change your answers before final submission.
+              {t('quizTake.autosaveNote')}
             </p>
           </div>
         </aside>
@@ -328,12 +330,12 @@ export const QuizTakePage: React.FC = () => {
       {showConfirmModal && (
         <div className="modal-backdrop" onClick={() => setShowConfirmModal(false)}>
           <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
-            <h3 className="modal-title">Ready to Submit?</h3>
+            <h3 className="modal-title">{t('quizTake.confirmTitle')}</h3>
             <p className="modal-desc">
-              You have answered <strong>{answeredCount}</strong> of <strong>{questions.length}</strong> questions.
+              {t('quizTake.confirmBody', { answered: answeredCount, total: questions.length })}
               {unansweredCount > 0 && (
                 <span className="modal-warn-text">
-                  <br />⚠ You still have <strong>{unansweredCount}</strong> unanswered questions.
+                  <br />⚠ {t('quizTake.confirmWarn', { n: unansweredCount })}
                 </span>
               )}
             </p>
@@ -342,14 +344,14 @@ export const QuizTakePage: React.FC = () => {
                 onClick={() => setShowConfirmModal(false)}
                 className="btn-secondary"
               >
-                Back to Questions
+                {t('quizTake.backToQuestions')}
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
                 className="btn-primary"
               >
-                {submitting ? 'Submitting…' : 'Yes, Final Submit'}
+                {submitting ? t('quizTake.submitting') : t('quizTake.finalSubmit')}
               </button>
             </div>
           </div>

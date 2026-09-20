@@ -5,11 +5,13 @@ import { useAuth } from '../context/AuthContext.tsx';
 import { useToast } from '../context/ToastContext.tsx';
 import type { Book } from '../types/index.ts';
 import { LoadingState, ErrorState } from '../components/States.tsx';
+import { useI18n } from '../i18n/index.tsx';
 
 export const BookDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const { user } = useAuth();
   const toast = useToast();
+  const { t } = useI18n();
   const navigate = useNavigate();
 
   const [book, setBook] = useState<Book | null>(null);
@@ -28,7 +30,7 @@ export const BookDetailPage: React.FC = () => {
         setLoading(false);
       })
       .catch((err) => {
-        setError(err.message || 'Book not found.');
+        setError(err.message || t('bookDetail.notFound'));
         setLoading(false);
       });
   }, [slug]);
@@ -43,19 +45,19 @@ export const BookDetailPage: React.FC = () => {
       if (bookmarked) {
         await discoveryApi.removeBookmark('BOOK', book.id);
         setBookmarked(false);
-        toast.info('Removed from bookmarks');
+        toast.info(t('courseDetail.unbookmarkedToast'));
       } else {
         await discoveryApi.addBookmark('BOOK', book.id);
         setBookmarked(true);
-        toast.success('Book summary bookmarked');
+        toast.success(t('bookDetail.bookmarkedToast'));
       }
     } catch (err: any) {
-      toast.error(err.message || 'Bookmark action failed.');
+      toast.error(err.message || t('courseDetail.bookmarkFail'));
     }
   };
 
-  if (loading) return <LoadingState message="Loading book summary…" />;
-  if (error || !book) return <ErrorState error={error || 'Book not found.'} onRetry={() => window.location.reload()} />;
+  if (loading) return <LoadingState message={t('bookDetail.loading')} />;
+  if (error || !book) return <ErrorState error={error || t('bookDetail.notFound')} onRetry={() => window.location.reload()} />;
 
   return (
     <div className="book-detail-page">
@@ -75,14 +77,14 @@ export const BookDetailPage: React.FC = () => {
           </div>
 
           <div className="book-banner-info">
-            <p className="book-eyebrow">BOOK SUMMARY & ANALYSIS</p>
+            <p className="book-eyebrow">{t('bookDetail.eyebrow')}</p>
             <h1 className="book-title">{book.title}</h1>
-            <p className="book-byline">By <strong>{book.author_name}</strong></p>
+            <p className="book-byline">{t('course.by')} <strong>{book.author_name}</strong></p>
 
             <div className="book-specs-chips">
-              {book.published_year && <span className="spec-chip">Published {book.published_year}</span>}
-              {book.pages && <span className="spec-chip">{book.pages} pages</span>}
-              {book.rating > 0 && <span className="spec-chip gold-chip">★ {book.rating.toFixed(1)} / 5</span>}
+              {book.published_year && <span className="spec-chip">{t('bookDetail.published', { year: book.published_year })}</span>}
+              {book.pages && <span className="spec-chip">{t('bookDetail.pages', { n: book.pages })}</span>}
+              {book.rating > 0 && <span className="spec-chip gold-chip">★ {t('bookDetail.rating', { n: book.rating.toFixed(1) })}</span>}
             </div>
 
             <p className="book-short-desc">{book.description}</p>
@@ -92,10 +94,10 @@ export const BookDetailPage: React.FC = () => {
                 onClick={handleBookmark}
                 className={`btn-secondary ${bookmarked ? 'bookmarked-active' : ''}`}
               >
-                {bookmarked ? '★ Bookmarked' : '☆ Save to Bookmarks'}
+                {bookmarked ? `★ ${t('bookDetail.bookmarked')}` : `☆ ${t('bookDetail.save')}`}
               </button>
               <Link to="/books" className="btn-secondary">
-                ← Back to Books
+                ← {t('bookDetail.back')}
               </Link>
             </div>
           </div>
@@ -106,7 +108,7 @@ export const BookDetailPage: React.FC = () => {
       <div className="book-content-container">
         {/* Core Summary */}
         <section className="book-content-section">
-          <h2>Executive Summary</h2>
+          <h2>{t('bookDetail.executive')}</h2>
           <div
             className="book-rich-text"
             dangerouslySetInnerHTML={{ __html: book.summary || `<p>${book.description}</p>` }}
@@ -116,7 +118,7 @@ export const BookDetailPage: React.FC = () => {
         {/* Key Ideas */}
         {book.key_ideas && book.key_ideas.length > 0 && (
           <section className="book-content-section">
-            <h2>Key Ideas & Central Arguments</h2>
+            <h2>{t('bookDetail.keyIdeas')}</h2>
             <div className="key-ideas-grid">
               {book.key_ideas.map((idea, idx) => (
                 <div key={idx} className="key-idea-card">
@@ -132,7 +134,7 @@ export const BookDetailPage: React.FC = () => {
         {/* Important Lessons */}
         {book.lessons && book.lessons.length > 0 && (
           <section className="book-content-section">
-            <h2>Actionable Lessons</h2>
+            <h2>{t('bookDetail.lessons')}</h2>
             <ul className="lessons-checklist">
               {book.lessons.map((lesson, idx) => (
                 <li key={idx} className="lesson-check-item">
@@ -147,7 +149,7 @@ export const BookDetailPage: React.FC = () => {
         {/* Author & Historical Context */}
         {book.context && (
           <section className="book-content-section">
-            <h2>Author & Intellectual Context</h2>
+            <h2>{t('bookDetail.authorContext')}</h2>
             <div
               className="book-rich-text"
               dangerouslySetInnerHTML={{ __html: book.context }}
@@ -158,7 +160,7 @@ export const BookDetailPage: React.FC = () => {
         {/* Practical Applications */}
         {book.applications && (
           <section className="book-content-section">
-            <h2>Practical Applications</h2>
+            <h2>{t('bookDetail.applications')}</h2>
             <div
               className="book-rich-text"
               dangerouslySetInnerHTML={{ __html: book.applications }}
@@ -169,7 +171,7 @@ export const BookDetailPage: React.FC = () => {
         {/* Critical Review */}
         {book.review && (
           <section className="book-content-section">
-            <h2>Critical Assessment & Limitations</h2>
+            <h2>{t('bookDetail.critique')}</h2>
             <div
               className="book-rich-text"
               dangerouslySetInnerHTML={{ __html: book.review }}
@@ -180,7 +182,7 @@ export const BookDetailPage: React.FC = () => {
         {/* Reading Recommendation */}
         {book.recommendation && (
           <section className="book-content-section">
-            <h2>What to Read Next</h2>
+            <h2>{t('bookDetail.readNext')}</h2>
             <div
               className="book-rich-text"
               dangerouslySetInnerHTML={{ __html: book.recommendation }}
@@ -191,7 +193,7 @@ export const BookDetailPage: React.FC = () => {
         {/* Related Books */}
         {book.related && book.related.length > 0 && (
           <section className="book-content-section">
-            <h2>Related Books</h2>
+            <h2>{t('bookDetail.related')}</h2>
             <div className="related-books-grid">
               {book.related.map((rel) => (
                 <Link to={`/books/${rel.slug}`} key={rel.id} className="related-book-card">

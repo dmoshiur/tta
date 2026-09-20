@@ -5,11 +5,13 @@ import { useAuth } from '../context/AuthContext.tsx';
 import { useToast } from '../context/ToastContext.tsx';
 import type { ContentItem } from '../types/index.ts';
 import { LoadingState, ErrorState } from '../components/States.tsx';
+import { useI18n } from '../i18n/index.tsx';
 
 export const ArticleDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const { user } = useAuth();
   const toast = useToast();
+  const { t } = useI18n();
   const navigate = useNavigate();
 
   const [item, setItem] = useState<ContentItem | null>(null);
@@ -28,7 +30,7 @@ export const ArticleDetailPage: React.FC = () => {
         setLoading(false);
       })
       .catch((err) => {
-        setError(err.message || 'Article not found.');
+        setError(err.message || t('articleDetail.notFound'));
         setLoading(false);
       });
   }, [slug]);
@@ -43,14 +45,14 @@ export const ArticleDetailPage: React.FC = () => {
       if (bookmarked) {
         await discoveryApi.removeBookmark('ARTICLE', item.id);
         setBookmarked(false);
-        toast.info('Removed from bookmarks');
+        toast.info(t('courseDetail.unbookmarkedToast'));
       } else {
         await discoveryApi.addBookmark('ARTICLE', item.id);
         setBookmarked(true);
-        toast.success('Article bookmarked');
+        toast.success(t('articleDetail.bookmarkedToast'));
       }
     } catch (err: any) {
-      toast.error(err.message || 'Bookmark action failed.');
+      toast.error(err.message || t('courseDetail.bookmarkFail'));
     }
   };
 
@@ -59,12 +61,12 @@ export const ArticleDetailPage: React.FC = () => {
       navigator.share({ title: item?.title, text: item?.excerpt, url: window.location.href }).catch(() => {});
     } else {
       navigator.clipboard.writeText(window.location.href);
-      toast.success('Article link copied to clipboard!');
+      toast.success(t('articleDetail.copied'));
     }
   };
 
-  if (loading) return <LoadingState message="Loading article…" />;
-  if (error || !item) return <ErrorState error={error || 'Article not found.'} onRetry={() => window.location.reload()} />;
+  if (loading) return <LoadingState message={t('articleDetail.loading')} />;
+  if (error || !item) return <ErrorState error={error || t('articleDetail.notFound')} onRetry={() => window.location.reload()} />;
 
   const meta = item.meta || {};
 
@@ -88,10 +90,10 @@ export const ArticleDetailPage: React.FC = () => {
 
           <div className="article-byline-bar">
             <div className="byline-left">
-              <strong>By {item.author || 'ThinkTank Editorial'}</strong>
+              <strong>{t('articleDetail.byLine', { author: item.author || t('articleDetail.editorial') })}</strong>
               <span>
                 {item.published_at ? new Date(item.published_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : ''}
-                {' • '}{item.reading_minutes || 3} min read
+                {' • '}{t('articleDetail.minRead', { n: item.reading_minutes || 3 })}
               </span>
             </div>
 
@@ -99,12 +101,12 @@ export const ArticleDetailPage: React.FC = () => {
               <button
                 onClick={handleBookmark}
                 className={`btn-secondary-sm ${bookmarked ? 'bookmarked-active' : ''}`}
-                title="Bookmark article"
+                title={t('articleDetail.saveTitle')}
               >
-                {bookmarked ? '★ Saved' : '☆ Save'}
+                {bookmarked ? `★ ${t('articleDetail.saved')}` : `☆ ${t('articleDetail.save')}`}
               </button>
-              <button onClick={handleShare} className="btn-secondary-sm" title="Share article">
-                Share ↗
+              <button onClick={handleShare} className="btn-secondary-sm" title={t('articleDetail.shareTitle')}>
+                {t('articleDetail.share')} ↗
               </button>
             </div>
           </div>
@@ -120,40 +122,40 @@ export const ArticleDetailPage: React.FC = () => {
         {/* Structured World Affairs box if present */}
         {(meta.event || meta.background || meta.causes || meta.actors || meta.perspectives || meta.implications) && (
           <div className="world-structured-dossier">
-            <h2 className="dossier-heading">Strategic Dossier</h2>
+            <h2 className="dossier-heading">{t('articleDetail.dossier')}</h2>
             {meta.event && (
               <div className="dossier-row">
-                <strong>Core Event / Subject:</strong>
+                <strong>{t('articleDetail.event')}</strong>
                 <p>{meta.event}</p>
               </div>
             )}
             {meta.background && (
               <div className="dossier-row">
-                <strong>Background & Context:</strong>
+                <strong>{t('articleDetail.background')}</strong>
                 <p>{meta.background}</p>
               </div>
             )}
             {meta.causes && Array.isArray(meta.causes) && meta.causes.length > 0 && (
               <div className="dossier-row">
-                <strong>Primary Drivers:</strong>
+                <strong>{t('articleDetail.drivers')}</strong>
                 <ul>{meta.causes.map((c: string, idx: number) => <li key={idx}>{c}</li>)}</ul>
               </div>
             )}
             {meta.actors && Array.isArray(meta.actors) && meta.actors.length > 0 && (
               <div className="dossier-row">
-                <strong>Key Actors & Interests:</strong>
+                <strong>{t('articleDetail.actors')}</strong>
                 <ul>{meta.actors.map((a: string, idx: number) => <li key={idx}>{a}</li>)}</ul>
               </div>
             )}
             {meta.perspectives && Array.isArray(meta.perspectives) && meta.perspectives.length > 0 && (
               <div className="dossier-row">
-                <strong>Differing Perspectives:</strong>
+                <strong>{t('articleDetail.perspectives')}</strong>
                 <ul>{meta.perspectives.map((p: string, idx: number) => <li key={idx}>{p}</li>)}</ul>
               </div>
             )}
             {meta.implications && Array.isArray(meta.implications) && meta.implications.length > 0 && (
               <div className="dossier-row">
-                <strong>Strategic Implications:</strong>
+                <strong>{t('articleDetail.implications')}</strong>
                 <ul>{meta.implications.map((imp: string, idx: number) => <li key={idx}>{imp}</li>)}</ul>
               </div>
             )}
@@ -169,7 +171,7 @@ export const ArticleDetailPage: React.FC = () => {
         {/* Citations & Sources Box */}
         {item.sources && item.sources.length > 0 && (
           <aside className="article-sources-box">
-            <h3>Verified Sources & References</h3>
+            <h3>{t('articleDetail.sources')}</h3>
             <ol className="sources-list">
               {item.sources.map((src, idx) => (
                 <li key={idx}>
@@ -185,7 +187,7 @@ export const ArticleDetailPage: React.FC = () => {
         {/* Tags footer */}
         {item.tags && item.tags.length > 0 && (
           <div className="article-tags-row">
-            <span>Tags:</span>
+            <span>{t('articleDetail.tags')}</span>
             {item.tags.map((tag, idx) => (
               <span key={idx} className="tag-pill">#{tag}</span>
             ))}
@@ -195,7 +197,7 @@ export const ArticleDetailPage: React.FC = () => {
         {/* Related Articles */}
         {item.related && item.related.length > 0 && (
           <section className="article-related-section">
-            <h2>Related Analyses</h2>
+            <h2>{t('articleDetail.related')}</h2>
             <div className="related-cards-grid">
               {item.related.map((rel) => (
                 <Link to={`/read/${rel.slug}`} key={rel.id} className="related-card-item">

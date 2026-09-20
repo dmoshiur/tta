@@ -4,8 +4,11 @@ import { learningApi } from '../api.ts';
 import type { Course, Category } from '../types/index.ts';
 import { CourseCard } from '../components/CourseCard.tsx';
 import { LoadingState, EmptyState, ErrorState } from '../components/States.tsx';
+import { RevealGroup } from '../components/Reveal.tsx';
+import { useI18n } from '../i18n/index.tsx';
 
 export const CoursesPage: React.FC = () => {
+  const { t } = useI18n();
   const [searchParams, setSearchParams] = useSearchParams();
   const qParam = searchParams.get('q') || '';
   const sectionParam = searchParams.get('section') || '';
@@ -14,7 +17,7 @@ export const CoursesPage: React.FC = () => {
   const pageParam = parseInt(searchParams.get('page') || '1', 10);
 
   const [courses, setCourses] = useState<Course[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalPages, setTotalPages] = useState(1);
@@ -52,7 +55,7 @@ export const CoursesPage: React.FC = () => {
     const next = new URLSearchParams(searchParams);
     if (value) next.set(key, value);
     else next.delete(key);
-    next.set('page', '1');
+    if (key !== 'page') next.set('page', '1');
     setSearchParams(next);
   };
 
@@ -69,11 +72,9 @@ export const CoursesPage: React.FC = () => {
   return (
     <div className="page-container courses-page">
       <header className="page-header">
-        <p className="page-eyebrow">STRUCTURED LEARNING</p>
-        <h1 className="page-title">Explore Courses</h1>
-        <p className="page-lead">
-          Comprehensive, multi-module learning paths with notes, assignments, and quizzes.
-        </p>
+        <p className="page-eyebrow">{t('coursesPage.eyebrow')}</p>
+        <h1 className="page-title">{t('coursesPage.title')}</h1>
+        <p className="page-lead">{t('coursesPage.lead')}</p>
 
         {/* Search bar */}
         <form onSubmit={handleSearchSubmit} className="catalog-search-form">
@@ -81,12 +82,12 @@ export const CoursesPage: React.FC = () => {
             type="search"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Search courses by title, topic, or instructor…"
-            aria-label="Search courses"
+            placeholder={t('coursesPage.searchPlaceholder')}
+            aria-label={t('coursesPage.searchAria')}
             className="catalog-search-input"
           />
           <button type="submit" className="btn-primary search-btn">
-            Search
+            {t('nav.search')}
           </button>
         </form>
       </header>
@@ -94,111 +95,113 @@ export const CoursesPage: React.FC = () => {
       {/* Filter controls */}
       <div className="catalog-filters-bar">
         <div className="filter-group">
-          <span className="filter-label">Section:</span>
+          <span className="filter-label">{t('coursesPage.section')}</span>
           <button
             className={`filter-pill ${!sectionParam ? 'active' : ''}`}
             onClick={() => updateFilter('section', '')}
           >
-            All
+            {t('coursesPage.all')}
           </button>
           <button
             className={`filter-pill ${sectionParam === 'JOB_PREP' ? 'active' : ''}`}
             onClick={() => updateFilter('section', 'JOB_PREP')}
           >
-            Job Prep
+            {t('home.pillars.jobPrep.name')}
           </button>
           <button
             className={`filter-pill ${sectionParam === 'ACADEMIC' ? 'active' : ''}`}
             onClick={() => updateFilter('section', 'ACADEMIC')}
           >
-            Academic
+            {t('home.pillars.academic.name')}
           </button>
           <button
             className={`filter-pill ${sectionParam === 'WORLD' ? 'active' : ''}`}
             onClick={() => updateFilter('section', 'WORLD')}
           >
-            World Affairs
+            {t('home.pillars.world.name')}
           </button>
           <button
             className={`filter-pill ${sectionParam === 'KNOWLEDGE' ? 'active' : ''}`}
             onClick={() => updateFilter('section', 'KNOWLEDGE')}
           >
-            General Knowledge
+            {t('home.pillars.knowledge.name')}
           </button>
           <button
             className={`filter-pill ${sectionParam === 'HUMANITY' ? 'active' : ''}`}
             onClick={() => updateFilter('section', 'HUMANITY')}
           >
-            Humanity
+            {t('home.pillars.humanity.name')}
           </button>
         </div>
 
         <div className="filter-group">
-          <span className="filter-label">Difficulty:</span>
+          <span className="filter-label">{t('coursesPage.difficulty')}</span>
           <select
             value={difficultyParam}
             onChange={(e) => updateFilter('difficulty', e.target.value)}
             className="filter-select"
-            aria-label="Filter by difficulty"
+            aria-label={t('coursesPage.difficulty')}
           >
-            <option value="">All Levels</option>
-            <option value="BEGINNER">Beginner</option>
-            <option value="INTERMEDIATE">Intermediate</option>
-            <option value="ADVANCED">Advanced</option>
+            <option value="">{t('coursesPage.allLevels')}</option>
+            <option value="BEGINNER">{t('coursesPage.beginner')}</option>
+            <option value="INTERMEDIATE">{t('coursesPage.intermediate')}</option>
+            <option value="ADVANCED">{t('coursesPage.advanced')}</option>
           </select>
         </div>
 
         {(qParam || sectionParam || difficultyParam || categoryParam) && (
           <button onClick={clearFilters} className="clear-filters-btn">
-            Reset Filters ✕
+            {t('coursesPage.reset')} ✕
           </button>
         )}
       </div>
 
       {/* Results header */}
       <div className="catalog-status-row">
-        <span>Showing {courses.length} of {totalCount} courses</span>
+        <span>{t('coursesPage.showing', { count: courses.length, total: totalCount })}</span>
       </div>
 
       {/* Course Cards Grid */}
       {loading ? (
-        <LoadingState message="Fetching courses…" />
+        <LoadingState message={t('coursesPage.loading')} />
       ) : error ? (
         <ErrorState error={error} onRetry={() => window.location.reload()} />
       ) : courses.length === 0 ? (
         <EmptyState
-          title="No courses match your criteria"
-          message="Try broadening your search term or clearing the active filters."
-          actionText="Clear All Filters"
+          title={t('coursesPage.emptyTitle')}
+          message={t('coursesPage.emptyBody')}
+          actionText={t('coursesPage.reset')}
           onAction={clearFilters}
         />
       ) : (
         <div className="cards-grid">
-          {courses.map((course) => (
-            <CourseCard key={course.id} course={course} />
-          ))}
+          <RevealGroup direction="up" stagger={100}>
+            {courses.map((course) => (
+              <CourseCard key={course.id} course={course} />
+            ))}
+          </RevealGroup>
         </div>
       )}
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <nav className="pagination-nav" aria-label="Course pages">
+        <nav className="pagination-nav" aria-label={t('coursesPage.title') + ' — ' + t('coursesPage.pageOf', { page: pageParam, pages: totalPages })}>
           <button
             disabled={pageParam <= 1}
             onClick={() => updateFilter('page', String(pageParam - 1))}
             className="pagination-btn"
           >
-            ← Previous
+            ← {t('coursesPage.prev')}
           </button>
           <span className="pagination-info">
-            Page {pageParam} of {totalPages}
+            {t('coursesPage.pageOf', { page: pageParam, pages: totalPages })}
           </span>
           <button
             disabled={pageParam >= totalPages}
             onClick={() => updateFilter('page', String(pageParam + 1))}
             className="pagination-btn"
           >
-            Next →
+            {t('coursesPage.next')} →
           </button>
         </nav>
       )}

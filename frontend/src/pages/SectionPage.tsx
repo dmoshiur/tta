@@ -5,73 +5,33 @@ import type { Course, ContentItem, QuizSummary, Category } from '../types/index.
 import { CourseCard } from '../components/CourseCard.tsx';
 import { ContentCard } from '../components/ContentCard.tsx';
 import { QuizCard } from '../components/QuizCard.tsx';
-import { LoadingState, EmptyState, ErrorState } from '../components/States.tsx';
+import { EmptyState, ErrorState, SkeletonGrid } from '../components/States.tsx';
+import { Reveal, RevealGroup } from '../components/Reveal.tsx';
+import { useI18n } from '../i18n/index.tsx';
 
 interface SectionConfig {
   id: string;
-  tagline: string;
-  eyebrow: string;
-  description: string;
   contentTypes?: string[];
-  bannerBg?: string;
+  /** position within the seven-pillar index (books pillar lives at /books) */
+  pillarNo: number;
 }
 
 const SECTION_MAP: Record<string, SectionConfig> = {
-  'job-prep': {
-    id: 'JOB_PREP',
-    tagline: 'ThinkTank Job Preparation',
-    eyebrow: 'CAREER & COMPETITIVE EXAMINATIONS',
-    description:
-      'MCQ question banks, full-length model tests, previous questions analysis, General Knowledge, Current Affairs, English, বাংলা, Mathematics, ICT, and proven exam strategy.',
-  },
-  academic: {
-    id: 'ACADEMIC',
-    tagline: 'ThinkTank Academic',
-    eyebrow: 'FOUNDATIONS & TUTORIALS',
-    description:
-      'Step-by-step concept explanations, guided tutorials, worked problem solving, exam preparation notes, and curated academic study resources.',
-  },
-  knowledge: {
-    id: 'KNOWLEDGE',
-    tagline: 'General Knowledge & Science',
-    eyebrow: 'EXPANDING YOUR MENTAL HORIZON',
-    description:
-      'History, natural sciences, technology, economics, psychology, philosophy, world culture, environment, and everyday knowledge explained with context.',
-    contentTypes: ['KNOWLEDGE'],
-  },
-  world: {
-    id: 'WORLD',
-    tagline: 'World Affairs & Geopolitics',
-    eyebrow: 'GLOBAL STRATEGY & INTERNATIONAL RELATIONS',
-    description:
-      'International relations, geopolitics, trade chokepoints, diplomacy, major powers, and current events. Strictly distinguishing Facts, Analysis, and Opinion with sources.',
-    contentTypes: ['WORLD'],
-  },
-  humanity: {
-    id: 'HUMANITY',
-    tagline: 'ThinkTank Humanity',
-    eyebrow: 'ETHICS, DIGNITY & EMPATHY',
-    description:
-      'Empathy as an active discipline, unconditional human dignity, moral courage, kindness, social responsibility, and lived human testimony.',
-    contentTypes: ['HUMANITY'],
-  },
-  society: {
-    id: 'SOCIETY',
-    tagline: 'Society & Social Unity',
-    eyebrow: 'COHESION & RESPONSIBLE CITIZENSHIP',
-    description:
-      'Social cohesion, mutual respect across difference, constructive dialogue, tolerance, diversity, community values, and peaceful coexistence.',
-    contentTypes: ['SOCIETY'],
-  },
+  'job-prep': { id: 'JOB_PREP', pillarNo: 1 },
+  academic: { id: 'ACADEMIC', pillarNo: 2 },
+  knowledge: { id: 'KNOWLEDGE', contentTypes: ['KNOWLEDGE'], pillarNo: 4 },
+  world: { id: 'WORLD', contentTypes: ['WORLD'], pillarNo: 5 },
+  humanity: { id: 'HUMANITY', contentTypes: ['HUMANITY'], pillarNo: 6 },
+  society: { id: 'SOCIETY', contentTypes: ['SOCIETY'], pillarNo: 7 },
 };
 
 export const SectionPage: React.FC<{ sectionSlug: string }> = ({ sectionSlug }) => {
-  const config = SECTION_MAP[sectionSlug] || {
-    id: 'GENERAL',
-    tagline: 'Knowledge Hub',
-    eyebrow: 'LEARNING & IDEAS',
-    description: 'Explore multidisciplinary learning materials.',
-  };
+  const { t } = useI18n();
+  const config = SECTION_MAP[sectionSlug] || { id: 'GENERAL', pillarNo: 0 };
+
+  const eyebrow = t(`hubs.${sectionSlug}.eyebrow`);
+  const tagline = t(`hubs.${sectionSlug}.tagline`);
+  const description = t(`hubs.${sectionSlug}.desc`);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const categoryParam = searchParams.get('category') || '';
@@ -122,25 +82,56 @@ export const SectionPage: React.FC<{ sectionSlug: string }> = ({ sectionSlug }) 
     setSearchParams(next);
   };
 
+  const totalPieces = courses.length + quizzes.length + content.length;
+
   return (
     <div className="section-hub-page">
-      {/* Section Hero Banner */}
+      {/* Editorial hub hero */}
       <header className="section-hub-header">
         <div className="section-hub-inner">
-          <p className="section-hub-eyebrow">{config.eyebrow}</p>
-          <h1 className="section-hub-title">{config.tagline}</h1>
-          <p className="section-hub-lead">{config.description}</p>
+          {config.pillarNo > 0 && (
+            <span className="section-hub-index" aria-hidden="true">
+              {String(config.pillarNo).padStart(2, '0')}
+            </span>
+          )}
+          <Reveal direction="up">
+            <p className="section-hub-eyebrow">{eyebrow}</p>
+          </Reveal>
+          <Reveal direction="up" delay={90}>
+            <h1 className="section-hub-title">{tagline}</h1>
+          </Reveal>
+          <Reveal direction="up" delay={180}>
+            <p className="section-hub-lead">{description}</p>
+          </Reveal>
+          {!loading && totalPieces > 0 && (
+            <Reveal direction="up" delay={260}>
+              <div className="section-hub-meta-row">
+                {courses.length > 0 && (
+                  <span>
+                    <i>{courses.length}</i> {t('sectionPage.courses')}
+                  </span>
+                )}
+                {quizzes.length > 0 && (
+                  <span>
+                    <i>{quizzes.length}</i> {t('sectionPage.quizzesTab')}
+                  </span>
+                )}
+                {content.length > 0 && (
+                  <span>
+                    <i>{content.length}</i> {t('sectionPage.articlesTab')}
+                  </span>
+                )}
+              </div>
+            </Reveal>
+          )}
         </div>
       </header>
 
       {/* Subcategory Pills */}
       {categories.length > 0 && (
         <div className="categories-pill-bar">
-          <button
-            className={`cat-pill ${!categoryParam ? 'active' : ''}`}
-            onClick={() => setCategory('')}
-          >
-            All Topics
+          <button className={`cat-pill ${!categoryParam ? 'active' : ''}`} onClick={() => setCategory('')}>
+            {t('sectionPage.allTopics')}
           </button>
           {categories.map((cat) => (
             <button
@@ -155,41 +146,31 @@ export const SectionPage: React.FC<{ sectionSlug: string }> = ({ sectionSlug }) 
       )}
 
       {/* View Tabs */}
-      <div className="section-view-tabs">
-        <button
-          className={`tab-btn ${activeTab === 'all' ? 'active' : ''}`}
-          onClick={() => setTab('all')}
-        >
-          Everything
+      <div className="section-view-tabs" role="tablist">
+        <button className={`tab-btn ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setTab('all')} role="tab" aria-selected={activeTab === 'all'}>
+          {t('sectionPage.everything')}
         </button>
         {courses.length > 0 && (
-          <button
-            className={`tab-btn ${activeTab === 'courses' ? 'active' : ''}`}
-            onClick={() => setTab('courses')}
-          >
-            Courses ({courses.length})
+          <button className={`tab-btn ${activeTab === 'courses' ? 'active' : ''}`} onClick={() => setTab('courses')} role="tab" aria-selected={activeTab === 'courses'}>
+            {t('sectionPage.courses')} ({courses.length})
           </button>
         )}
         {quizzes.length > 0 && (
-          <button
-            className={`tab-btn ${activeTab === 'quizzes' ? 'active' : ''}`}
-            onClick={() => setTab('quizzes')}
-          >
-            Quizzes & Tests ({quizzes.length})
+          <button className={`tab-btn ${activeTab === 'quizzes' ? 'active' : ''}`} onClick={() => setTab('quizzes')} role="tab" aria-selected={activeTab === 'quizzes'}>
+            {t('sectionPage.quizzesTab')} ({quizzes.length})
           </button>
         )}
         {content.length > 0 && (
-          <button
-            className={`tab-btn ${activeTab === 'articles' ? 'active' : ''}`}
-            onClick={() => setTab('articles')}
-          >
-            Articles & Pieces ({content.length})
+          <button className={`tab-btn ${activeTab === 'articles' ? 'active' : ''}`} onClick={() => setTab('articles')} role="tab" aria-selected={activeTab === 'articles'}>
+            {t('sectionPage.articlesTab')} ({content.length})
           </button>
         )}
       </div>
 
       {loading ? (
-        <LoadingState message={`Loading ${config.tagline}…`} />
+        <div style={{ paddingTop: '2.5rem' }}>
+          <SkeletonGrid count={6} />
+        </div>
       ) : error ? (
         <ErrorState error={error} onRetry={() => window.location.reload()} />
       ) : (
@@ -198,13 +179,15 @@ export const SectionPage: React.FC<{ sectionSlug: string }> = ({ sectionSlug }) 
           {(activeTab === 'all' || activeTab === 'courses') && courses.length > 0 && (
             <div className="section-subblock">
               <div className="subblock-header">
-                <h2>Structured Courses</h2>
-                <Link to={`/courses?section=${config.id}`}>View all courses →</Link>
+                <h2>{t('sectionPage.structuredCourses')}</h2>
+                <Link to={`/courses?section=${config.id}`}>{t('sectionPage.viewAllCourses')} →</Link>
               </div>
               <div className="cards-grid">
-                {courses.map((course) => (
-                  <CourseCard key={course.id} course={course} />
-                ))}
+                <RevealGroup direction="up" stagger={90}>
+                  {courses.map((course) => (
+                    <CourseCard key={course.id} course={course} />
+                  ))}
+                </RevealGroup>
               </div>
             </div>
           )}
@@ -213,13 +196,15 @@ export const SectionPage: React.FC<{ sectionSlug: string }> = ({ sectionSlug }) 
           {(activeTab === 'all' || activeTab === 'quizzes') && quizzes.length > 0 && (
             <div className="section-subblock">
               <div className="subblock-header">
-                <h2>Practice Quizzes & Model Tests</h2>
-                <Link to="/quizzes">View all tests →</Link>
+                <h2>{t('sectionPage.practiceQuizzes')}</h2>
+                <Link to="/quizzes">{t('sectionPage.viewAllTests')} →</Link>
               </div>
               <div className="cards-grid">
-                {quizzes.map((quiz) => (
-                  <QuizCard key={quiz.id} quiz={quiz} />
-                ))}
+                <RevealGroup direction="up" stagger={90}>
+                  {quizzes.map((quiz) => (
+                    <QuizCard key={quiz.id} quiz={quiz} />
+                  ))}
+                </RevealGroup>
               </div>
             </div>
           )}
@@ -228,22 +213,24 @@ export const SectionPage: React.FC<{ sectionSlug: string }> = ({ sectionSlug }) 
           {(activeTab === 'all' || activeTab === 'articles') && content.length > 0 && (
             <div className="section-subblock">
               <div className="subblock-header">
-                <h2>Editorial Analyses & Perspectives</h2>
-                <Link to="/articles">View all articles →</Link>
+                <h2>{t('sectionPage.editorial')}</h2>
+                <Link to="/articles">{t('sectionPage.viewAllArticles')} →</Link>
               </div>
               <div className="cards-grid">
-                {content.map((item) => (
-                  <ContentCard key={item.id} item={item} />
-                ))}
+                <RevealGroup direction="up" stagger={90}>
+                  {content.map((item) => (
+                    <ContentCard key={item.id} item={item} />
+                  ))}
+                </RevealGroup>
               </div>
             </div>
           )}
 
           {courses.length === 0 && quizzes.length === 0 && content.length === 0 && (
             <EmptyState
-              title="No content in this category yet"
-              message="Select another subtopic or check back soon as our editorial team publishes new material."
-              actionText="View All Topics"
+              title={t('sectionPage.emptyTitle')}
+              message={t('sectionPage.emptyBody')}
+              actionText={t('sectionPage.emptyAction')}
               onAction={() => setCategory('')}
             />
           )}

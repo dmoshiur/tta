@@ -2,25 +2,28 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { discoveryApi } from '../api.ts';
 import { useToast } from '../context/ToastContext.tsx';
+import { useI18n, LanguageSwitcher } from '../i18n/index.tsx';
+import { BrandLogo } from './BrandLogo.tsx';
 
 export const Footer: React.FC = () => {
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const toast = useToast();
+  const { t } = useI18n();
 
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !email.includes('@')) {
-      toast.error('Please enter a valid email address.');
+      toast.error(t('footer.subscribeInvalid'));
       return;
     }
     setSubmitting(true);
     try {
       await discoveryApi.subscribeNewsletter(email);
-      toast.success('Thank you for subscribing to ThinkTank Academia.');
+      toast.success(t('footer.subscribeSuccess'));
       setEmail('');
     } catch (err: any) {
-      toast.error(err.message || 'Subscription failed. Please try again.');
+      toast.error(err.message || t('footer.subscribeFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -28,89 +31,85 @@ export const Footer: React.FC = () => {
 
   return (
     <footer className="tta-footer">
-      <div className="footer-top">
-        {/* Brand column */}
-        <div className="footer-col brand-col">
-          <Link to="/" className="brand-logo light" aria-label="ThinkTank Academia Home">
-            <img src="/icon.svg" alt="" className="brand-monogram-img" />
-            <div className="brand-text">
-              <span className="brand-name">ThinkTank</span>
-              <span className="brand-sub">ACADEMIA</span>
-            </div>
+      {/* Brand row — official dark-surface logo, large */}
+      <div className="footer-brand-row">
+        <div className="footer-brand-text">
+          <Link to="/" aria-label="ThinkTank Academia — Home">
+            <BrandLogo surface="dark" className="footer-brand-logo" />
           </Link>
-          <p className="footer-tagline">Learn • Think • Understand • Unite</p>
-          <p className="footer-desc">
-            A multidisciplinary learning and knowledge platform for education, ideas, and humanity.
-          </p>
           <div className="footer-social-links">
-            <span className="social-badge">Truth & Rigor</span>
-            <span className="social-badge">Diverse Perspectives</span>
-            <span className="social-badge">Human Dignity</span>
+            <span className="social-badge">{t('footer.badge1')}</span>
+            <span className="social-badge">{t('footer.badge2')}</span>
+            <span className="social-badge">{t('footer.badge3')}</span>
           </div>
         </div>
+        <div>
+          <p className="footer-tagline">{t('brand.tagline')}</p>
+          <p className="footer-desc">{t('footer.desc')}</p>
+        </div>
+      </div>
 
-        {/* Learning column */}
+      <div className="footer-top">
+        {/* Education column */}
         <div className="footer-col">
-          <h4 className="footer-heading">Education & Skills</h4>
+          <h4 className="footer-heading">{t('footer.educationTitle')}</h4>
           <ul className="footer-links">
-            <li><Link to="/courses">All Courses</Link></li>
-            <li><Link to="/job-prep">Job Preparation & MCQs</Link></li>
-            <li><Link to="/academic">Academic Learning</Link></li>
-            <li><Link to="/quizzes">Quizzes & Model Tests</Link></li>
-            <li><Link to="/search">Knowledge Search</Link></li>
+            <li><Link to="/courses">{t('nav.courses')}</Link></li>
+            <li><Link to="/job-prep">{t('drawer.jobPrepFull')}</Link></li>
+            <li><Link to="/academic">{t('drawer.academicFull')}</Link></li>
+            <li><Link to="/quizzes">{t('drawer.quizzesFull')}</Link></li>
+            <li><Link to="/search">{t('nav.search')}</Link></li>
           </ul>
         </div>
 
-        {/* Ideas & Humanity column */}
+        {/* Ideas column */}
         <div className="footer-col">
-          <h4 className="footer-heading">Ideas & Society</h4>
+          <h4 className="footer-heading">{t('footer.ideasTitle')}</h4>
           <ul className="footer-links">
-            <li><Link to="/books">Books & Key Ideas</Link></li>
-            <li><Link to="/knowledge">General Knowledge</Link></li>
-            <li><Link to="/world">World Affairs & Geopolitics</Link></li>
-            <li><Link to="/humanity">Humanity & Ethics</Link></li>
-            <li><Link to="/society">Society & Unity</Link></li>
-            <li><Link to="/articles">Editorial Articles</Link></li>
+            <li><Link to="/books">{t('drawer.booksFull')}</Link></li>
+            <li><Link to="/knowledge">{t('drawer.knowledgeFull')}</Link></li>
+            <li><Link to="/world">{t('drawer.worldFull')}</Link></li>
+            <li><Link to="/humanity">{t('drawer.humanityFull')}</Link></li>
+            <li><Link to="/society">{t('drawer.societyFull')}</Link></li>
+            <li><Link to="/articles">{t('drawer.articlesFull')}</Link></li>
           </ul>
         </div>
 
-        {/* Newsletter & Organization */}
+        {/* Organization column */}
         <div className="footer-col">
-          <h4 className="footer-heading">Stay Informed</h4>
-          <p className="newsletter-text">
-            Receive weekly curated essays, book summaries, and new course announcements.
-          </p>
+          <h4 className="footer-heading">{t('drawer.info')}</h4>
+          <ul className="footer-links">
+            <li><Link to="/about">{t('footer.about')}</Link></li>
+            <li><Link to="/contact">{t('footer.contact')}</Link></li>
+            <li><Link to="/privacy">{t('drawer.privacy')}</Link></li>
+            <li><Link to="/terms">{t('drawer.terms')}</Link></li>
+          </ul>
+        </div>
+
+        {/* Newsletter */}
+        <div className="footer-col">
+          <h4 className="footer-heading">{t('footer.stayTitle')}</h4>
+          <p className="newsletter-text">{t('footer.newsletterText')}</p>
           <form onSubmit={handleSubscribe} className="footer-newsletter-form">
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
+              placeholder={t('footer.emailPlaceholder')}
               required
-              aria-label="Email for newsletter"
+              aria-label={t('footer.emailPlaceholder')}
             />
             <button type="submit" disabled={submitting}>
-              {submitting ? '…' : 'Subscribe'}
+              {submitting ? '…' : t('actions.subscribe')}
             </button>
           </form>
-
-          <div className="footer-org-links">
-            <Link to="/about">About Us</Link>
-            <span>•</span>
-            <Link to="/contact">Contact</Link>
-            <span>•</span>
-            <Link to="/privacy">Privacy</Link>
-            <span>•</span>
-            <Link to="/terms">Terms</Link>
-          </div>
+          <LanguageSwitcher />
         </div>
       </div>
 
       <div className="footer-bottom">
-        <p>© {new Date().getFullYear()} ThinkTank Academia. All rights reserved.</p>
-        <p className="footer-statement">
-          Building thoughtful minds and united communities through knowledge and understanding.
-        </p>
+        <p>© {new Date().getFullYear()} ThinkTank Academia. {t('footer.rights')}</p>
+        <p className="footer-statement">{t('footer.statement')}</p>
       </div>
     </footer>
   );

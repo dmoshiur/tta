@@ -4,8 +4,11 @@ import { contentApi } from '../api.ts';
 import type { ContentItem } from '../types/index.ts';
 import { ContentCard } from '../components/ContentCard.tsx';
 import { LoadingState, EmptyState, ErrorState } from '../components/States.tsx';
+import { RevealGroup } from '../components/Reveal.tsx';
+import { useI18n } from '../i18n/index.tsx';
 
 export const ArticlesPage: React.FC = () => {
+  const { t } = useI18n();
   const [searchParams, setSearchParams] = useSearchParams();
   const qParam = searchParams.get('q') || '';
   const typeParam = searchParams.get('type') || '';
@@ -48,54 +51,34 @@ export const ArticlesPage: React.FC = () => {
     updateFilter('q', searchInput.trim());
   };
 
+  const typeFilters: { id: string; labelKey: string }[] = [
+    { id: '', labelKey: 'articlesPage.allSections' },
+    { id: 'KNOWLEDGE', labelKey: 'home.pillars.knowledge.name' },
+    { id: 'WORLD', labelKey: 'home.pillars.world.name' },
+    { id: 'HUMANITY', labelKey: 'home.pillars.humanity.name' },
+    { id: 'SOCIETY', labelKey: 'home.pillars.society.name' },
+    { id: 'ARTICLE', labelKey: 'articlesPage.essays' },
+  ];
+
   return (
     <div className="page-container articles-catalog-page">
       <header className="page-header">
-        <p className="page-eyebrow">IDEAS & PERSPECTIVES</p>
-        <h1 className="page-title">Editorial Articles & Analyses</h1>
-        <p className="page-lead">
-          Thoughtful, evidence-grounded articles on science, geopolitics, human empathy, and community coexistence.
-        </p>
+        <p className="page-eyebrow">{t('articlesPage.eyebrow')}</p>
+        <h1 className="page-title">{t('articlesPage.title')}</h1>
+        <p className="page-lead">{t('articlesPage.lead')}</p>
 
         {/* Filter Bar */}
         <div className="catalog-filters-bar">
           <div className="filter-group">
-            <button
-              className={`filter-pill ${!typeParam ? 'active' : ''}`}
-              onClick={() => updateFilter('type', '')}
-            >
-              All Sections
-            </button>
-            <button
-              className={`filter-pill ${typeParam === 'KNOWLEDGE' ? 'active' : ''}`}
-              onClick={() => updateFilter('type', 'KNOWLEDGE')}
-            >
-              Knowledge
-            </button>
-            <button
-              className={`filter-pill ${typeParam === 'WORLD' ? 'active' : ''}`}
-              onClick={() => updateFilter('type', 'WORLD')}
-            >
-              World Affairs
-            </button>
-            <button
-              className={`filter-pill ${typeParam === 'HUMANITY' ? 'active' : ''}`}
-              onClick={() => updateFilter('type', 'HUMANITY')}
-            >
-              Humanity
-            </button>
-            <button
-              className={`filter-pill ${typeParam === 'SOCIETY' ? 'active' : ''}`}
-              onClick={() => updateFilter('type', 'SOCIETY')}
-            >
-              Society
-            </button>
-            <button
-              className={`filter-pill ${typeParam === 'ARTICLE' ? 'active' : ''}`}
-              onClick={() => updateFilter('type', 'ARTICLE')}
-            >
-              Essays
-            </button>
+            {typeFilters.map((f) => (
+              <button
+                key={f.id || 'all'}
+                className={`filter-pill ${typeParam === f.id ? 'active' : ''}`}
+                onClick={() => updateFilter('type', f.id)}
+              >
+                {t(f.labelKey)}
+              </button>
+            ))}
           </div>
 
           <div className="filter-group">
@@ -103,12 +86,12 @@ export const ArticlesPage: React.FC = () => {
               value={stanceParam}
               onChange={(e) => updateFilter('stance', e.target.value)}
               className="filter-select"
-              aria-label="Filter by stance"
+              aria-label={t('articlesPage.stanceLabel')}
             >
-              <option value="">All Stances</option>
-              <option value="FACT">Fact (Report)</option>
-              <option value="ANALYSIS">Analysis</option>
-              <option value="OPINION">Opinion (Perspective)</option>
+              <option value="">{t('articlesPage.allStances')}</option>
+              <option value="FACT">{t('articlesPage.stanceFact')}</option>
+              <option value="ANALYSIS">{t('articlesPage.stanceAnalysis')}</option>
+              <option value="OPINION">{t('articlesPage.stanceOpinion')}</option>
             </select>
           </div>
 
@@ -117,30 +100,32 @@ export const ArticlesPage: React.FC = () => {
               type="search"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search articles…"
-              aria-label="Search articles"
+              placeholder={t('articlesPage.searchPlaceholder')}
+              aria-label={t('articlesPage.searchAria')}
             />
-            <button type="submit" className="btn-primary-sm">Search</button>
+            <button type="submit" className="btn-primary-sm">{t('articlesPage.searchBtn')}</button>
           </form>
         </div>
       </header>
 
       {loading ? (
-        <LoadingState message="Loading editorial library…" />
+        <LoadingState message={t('articlesPage.loading')} />
       ) : error ? (
         <ErrorState error={error} onRetry={() => window.location.reload()} />
       ) : items.length === 0 ? (
         <EmptyState
-          title="No articles match your criteria"
-          message="Try adjusting your section or stance filters, or clear your search."
-          actionText="Reset All Filters"
+          title={t('articlesPage.emptyTitle')}
+          message={t('articlesPage.emptyBody')}
+          actionText={t('articlesPage.reset')}
           onAction={() => { setSearchInput(''); setSearchParams(new URLSearchParams()); }}
         />
       ) : (
         <div className="cards-grid">
-          {items.map((item) => (
-            <ContentCard key={item.id} item={item} />
-          ))}
+          <RevealGroup direction="up" stagger={90}>
+            {items.map((item) => (
+              <ContentCard key={item.id} item={item} />
+            ))}
+          </RevealGroup>
         </div>
       )}
     </div>
