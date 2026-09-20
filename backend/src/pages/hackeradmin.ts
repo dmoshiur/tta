@@ -12,17 +12,19 @@ export const HACKERADMIN_HTML = `<!doctype html>
 <title>HACKER ADMIN // ThinkTank Academia</title>
 <style>
   :root{
-    --bg:#070d16;--panel:#0c1524;--panel2:#101c30;--line:#1d2f47;
-    --txt:#d7e3f4;--dim:#7e93ad;--cyan:#38e1ff;--green:#3ddc84;--red:#ff5d5d;
-    --amber:#ffc24b;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --bg:#0d0b09;--panel:#15120d;--panel2:#1c1812;--line:#332a1d;
+    --txt:#e7dfcf;--dim:#9d917c;--gold:#c2a05c;--gold-deep:#8a6a33;
+    --green:#3ddc84;--red:#ff5d5d;--amber:#ffc24b;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --serif:'Libre Caslon Display',Georgia,'Times New Roman',serif;
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--mono);font-size:14px;line-height:1.5}
-  a{color:var(--cyan);text-decoration:none}
+  body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.5}
+  a{color:var(--gold);text-decoration:none}
   a:hover{text-decoration:underline}
   .wrap{max-width:1180px;margin:0 auto;padding:24px 18px 80px}
   .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 0;border-bottom:1px solid var(--line);margin-bottom:20px}
-  .brand{font-size:15px;letter-spacing:.22em;color:var(--cyan);font-weight:700}
+  .brand{font-size:15px;letter-spacing:.22em;color:var(--gold);font-weight:700}
   .brand small{display:block;letter-spacing:.14em;color:var(--dim);font-size:10px;font-weight:400;margin-top:3px}
   .pill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:3px 12px;font-size:11px;letter-spacing:.12em;color:var(--dim)}
   .pill.on{color:var(--green);border-color:rgba(61,220,132,.4)}
@@ -43,28 +45,36 @@ export const HACKERADMIN_HTML = `<!doctype html>
   .tag.ok{background:rgba(61,220,132,.12);color:var(--green)}
   .tag.warn{background:rgba(255,194,75,.12);color:var(--amber)}
   .tag.err{background:rgba(255,93,93,.12);color:var(--red)}
-  .tag.info{background:rgba(56,225,255,.1);color:var(--cyan)}
+  .tag.info{background:rgba(194,160,92,.1);color:var(--gold)}
   .bar{height:14px;background:var(--panel2);border:1px solid var(--line);border-radius:4px;overflow:hidden;min-width:120px}
-  .bar i{display:block;height:100%;background:linear-gradient(90deg,#137089,var(--cyan))}
+  .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold-deep),var(--gold))}
   .bar-row{display:grid;grid-template-columns:110px 1fr 52px;gap:10px;align-items:center;margin-bottom:7px;font-size:12px}
   .bar-row .lbl{color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .big-switch{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
   .switch-state{font-size:34px;font-weight:800;letter-spacing:.06em}
   .switch-state.on{color:var(--green)}
   .switch-state.off{color:var(--red)}
-  button{font-family:var(--mono);cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--txt);padding:10px 16px;font-size:13px;letter-spacing:.06em}
-  button:hover{border-color:var(--cyan)}
+  button{font-family:inherit;cursor:pointer;border-radius:4px;border:1px solid var(--line);background:var(--panel2);color:var(--txt);padding:10px 16px;font-size:12px;letter-spacing:.14em;text-transform:uppercase}
+  button:hover{border-color:var(--gold)}
   button.danger{border-color:rgba(255,93,93,.55);color:var(--red)}
-  button.primary{border-color:rgba(56,225,255,.55);color:var(--cyan)}
+  button.primary{border-color:rgba(194,160,92,.55);color:var(--gold)}
+  button.cta{background:linear-gradient(90deg,var(--gold-deep),var(--gold));border:none;color:#171106;font-weight:700}
+  button.cta:hover{filter:brightness(1.12)}
   button:disabled{opacity:.5;cursor:default}
-  input[type=password],input[type=text]{font-family:var(--mono);background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:12px 14px;font-size:16px;letter-spacing:.2em;width:100%;max-width:340px}
-  input:focus{outline:none;border-color:var(--cyan)}
-  .login-box{max-width:420px;margin:9vh auto 0;text-align:center}
-  .login-box h1{font-size:19px;letter-spacing:.3em;color:var(--cyan);margin:18px 0 6px}
-  .login-box p{color:var(--dim);font-size:12.5px;margin:8px 0 22px;line-height:1.7}
+  input[type=password],input[type=text]{font-family:var(--mono);background:var(--bg);border:1px solid var(--line);color:var(--txt);border-radius:4px;padding:14px 16px;font-size:16px;letter-spacing:.2em;width:100%;max-width:340px}
+  input:focus{outline:none;border-color:var(--gold)}
+  .login-box{max-width:460px;margin:9vh auto 0;text-align:center;border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:44px 40px 34px}
+  .icon-box{width:64px;height:64px;margin:0 auto;border:1px solid rgba(194,160,92,.45);border-radius:4px;display:grid;place-items:center;color:var(--gold)}
+  .eyebrow{font-size:11px;letter-spacing:.3em;color:var(--gold);text-transform:uppercase;margin:22px 0 10px}
+  .login-box h1{font-family:var(--serif);font-weight:400;font-size:30px;letter-spacing:0;color:#f4ecdc;margin:0 0 14px}
+  .login-box p{color:var(--dim);font-size:13px;margin:8px 0 22px;line-height:1.7}
+  .field-label{display:block;text-align:left;font-size:11px;letter-spacing:.22em;color:var(--dim);text-transform:uppercase;margin:0 0 8px}
+  .divider{border:none;border-top:1px solid var(--line);margin:26px 0 18px}
+  .fineprint{color:var(--dim);font-size:12px;line-height:1.7;margin:0}
+  .back-link{display:inline-block;margin-top:20px;font-size:11px;letter-spacing:.22em;color:var(--gold);text-transform:uppercase}
   .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}
   .tab{padding:8px 14px;border-radius:8px;border:1px solid var(--line);color:var(--dim);font-size:12px;letter-spacing:.1em;cursor:pointer;background:transparent;font-family:var(--mono)}
-  .tab.active{color:var(--cyan);border-color:rgba(56,225,255,.5)}
+  .tab.active{color:var(--gold);border-color:rgba(194,160,92,.5)}
   .muted{color:var(--dim)}
   .kv{display:grid;grid-template-columns:190px 1fr;gap:6px 14px;font-size:12.5px}
   .kv .k{color:var(--dim)}
@@ -90,14 +100,25 @@ export const HACKERADMIN_HTML = `<!doctype html>
 
   <!-- ══ LOGIN ══ -->
   <section id="login-view">
-    <div class="card login-box">
-      <h1>ACCESS CONTROL</h1>
-      <p>Enter the operations passcode. A fresh code is generated <strong>every hour</strong> and e-mailed to the configured operator address. Only a hash of the code is stored.</p>
+    <div class="login-box">
+      <div class="icon-box" aria-hidden="true">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="7.5" cy="7.5" r="4.2"/>
+          <path d="M10.6 10.6 L20 20 M16.5 16.5 l2.2 -2.2 M19.2 19.2 l1.8 -1.8"/>
+        </svg>
+      </div>
+      <p class="eyebrow">Restricted · Operations</p>
+      <h1>Control Panel Access</h1>
+      <p>This panel is protected by a rotating passcode. A new passcode is generated every hour and delivered only to the registered security email address.</p>
       <form id="login-form" autocomplete="off">
-        <input type="password" id="passcode" placeholder="XXXX-XXXX" maxlength="12" required style="margin:0 auto;display:block;letter-spacing:.35em"/>
-        <button class="primary" type="submit" style="width:100%;max-width:340px;margin-top:14px">AUTHENTICATE</button>
+        <label class="field-label" for="passcode">Current Passcode</label>
+        <input type="password" id="passcode" placeholder="••••••••••••" maxlength="12" required style="margin:0 auto;display:block;letter-spacing:.35em"/>
+        <button class="cta" type="submit" style="width:100%;max-width:340px;margin-top:16px">Enter the Panel</button>
       </form>
       <p class="countdown" id="window-info" style="margin-top:18px"></p>
+      <hr class="divider"/>
+      <p class="fineprint">Every attempt is rate-limited and written to the audit log. The passcode is never shown in this interface, in URLs or in application logs.</p>
+      <a class="back-link" href="/">← Back to Site</a>
     </div>
   </section>
 
