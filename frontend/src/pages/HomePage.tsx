@@ -102,24 +102,37 @@ export const HomePage: React.FC = () => {
             </Reveal>
           </div>
 
-          <div className="hero-visual" aria-hidden="true">
-            <div className="hero-orb-wrap">
-              <div className="orb-ring orb-ring-1" />
-              <div className="orb-ring orb-ring-2" />
-              <div className="hero-orb orb-float">
-                <span className="orb-initials">TT</span>
+          <div className="hero-visual">
+            <Reveal direction="zoom" delay={260}>
+              <div className="hero-banner-card">
+                <img
+                  className="hero-banner-photo"
+                  src="/brand/hero-photo.jpg"
+                  alt="Sunrise over a mountain valley, with books, an open notebook and a globe on a study desk"
+                />
+                <div className="hero-banner-scrim" aria-hidden="true" />
+                <div className="hero-banner-content">
+                  <img
+                    className="hero-banner-logo"
+                    src="/brand/logo-light.svg"
+                    alt="ThinkTank Academia — Learn, Think, Understand, Unite"
+                  />
+                  <nav className="hero-pillar-chips" aria-label="ThinkTank pillars">
+                    <Link to="/academic">🎓 Education</Link>
+                    <Link to="/knowledge">📖 Knowledge</Link>
+                    <Link to="/books">📚 Books</Link>
+                    <Link to="/world">🌍 Geopolitics</Link>
+                    <Link to="/humanity">🤝 Humanity</Link>
+                    <Link to="/society">👥 Social Unity</Link>
+                  </nav>
+                </div>
               </div>
-              <span className="orb-chip chip-1">📚 Learn</span>
-              <span className="orb-chip chip-2">💡 Think</span>
-              <span className="orb-chip chip-3">🤝 Unite</span>
-            </div>
+            </Reveal>
             {hero.quote?.text && (
-              <Reveal direction="zoom" delay={500}>
-                <blockquote className="hero-quote">
-                  “{hero.quote.text}”
-                  <small>— {hero.quote.attribution || 'Albert Einstein'}</small>
-                </blockquote>
-              </Reveal>
+              <blockquote className="hero-quote">
+                “{hero.quote.text}”
+                <small>— {hero.quote.attribution || 'Albert Einstein'}</small>
+              </blockquote>
             )}
           </div>
         </div>

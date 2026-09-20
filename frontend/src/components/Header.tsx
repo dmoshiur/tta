@@ -55,7 +55,7 @@ export const Header: React.FC = () => {
         <div className="header-inner">
           {/* Brand Logo */}
           <Link to="/" className="brand-logo" aria-label="ThinkTank Academia Home">
-            <span className="brand-monogram">TT</span>
+            <img src="/icon.svg" alt="" className="brand-monogram-img" />
             <div className="brand-text">
               <span className="brand-name">ThinkTank</span>
               <span className="brand-sub">ACADEMIA</span>
@@ -165,7 +165,7 @@ export const Header: React.FC = () => {
             <div className="mobile-drawer" onClick={(e) => e.stopPropagation()}>
               <div className="drawer-header">
                 <Link to="/" className="brand-logo" onClick={() => setMobileOpen(false)}>
-                  <span className="brand-monogram">TT</span>
+                  <img src="/icon.svg" alt="" className="brand-monogram-img" />
                   <div className="brand-text">
                     <span className="brand-name">ThinkTank</span>
                     <span className="brand-sub">ACADEMIA</span>

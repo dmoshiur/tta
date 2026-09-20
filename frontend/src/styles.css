@@ -686,80 +686,6 @@ button:disabled, .btn-primary:disabled {
   position: relative;
 }
 
-/* Orb wrapper with pulsing rings + floating chips */
-.hero-orb-wrap {
-  position: relative;
-  display: grid;
-  place-items: center;
-  padding: 2.2rem;
-}
-.hero-orb {
-  width: min(28vw, 250px);
-  height: min(28vw, 250px);
-  border-radius: 50%;
-  background: radial-gradient(circle at 32% 28%, var(--navy-light) 0%, var(--navy) 55%, var(--navy-dark) 100%);
-  border: 2px solid var(--gold);
-  display: grid;
-  place-items: center;
-  box-shadow: 0 0 0 14px rgba(7, 27, 51, 0.04), 0 24px 60px rgba(7, 27, 51, 0.35), inset 0 -14px 40px rgba(0, 0, 0, 0.35);
-  position: relative;
-  z-index: 2;
-}
-.orb-initials {
-  font-family: 'Libre Caslon Display', Georgia, serif;
-  font-size: 4.5rem;
-  color: var(--gold);
-  font-weight: 700;
-  text-shadow: 0 4px 24px rgba(212, 178, 116, 0.45);
-}
-
-/* Gentle floating motion */
-.orb-float {
-  animation: orb-float 6s ease-in-out infinite;
-}
-@keyframes orb-float {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(-16px) rotate(-1.5deg); }
-}
-
-/* Expanding pulse rings */
-.orb-ring {
-  position: absolute;
-  inset: 2.2rem;
-  border-radius: 50%;
-  border: 1.5px solid rgba(152, 112, 41, 0.45);
-  animation: ring-pulse 3.2s var(--ease-out-expo) infinite;
-  z-index: 1;
-}
-.orb-ring-2 { animation-delay: 1.6s; }
-@keyframes ring-pulse {
-  0% { transform: scale(1); opacity: 0.8; }
-  100% { transform: scale(1.45); opacity: 0; }
-}
-
-/* Floating concept chips around the orb */
-.orb-chip {
-  position: absolute;
-  z-index: 3;
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 100px;
-  padding: 0.4rem 0.9rem;
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: var(--navy);
-  box-shadow: var(--shadow-md);
-  animation: chip-bob 5s ease-in-out infinite;
-  white-space: nowrap;
-}
-.chip-1 { top: 6%; left: -8%; animation-delay: 0s; }
-.chip-2 { top: 42%; right: -12%; animation-delay: -1.7s; }
-.chip-3 { bottom: 2%; left: 2%; animation-delay: -3.4s; }
-@keyframes chip-bob {
-  0%, 100% { transform: translateY(0); box-shadow: var(--shadow-md); }
-  50% { transform: translateY(-10px); box-shadow: var(--shadow-lg); }
-}
-
 /* Scroll-down mouse hint */
 .hero-scroll-hint {
   position: absolute;
@@ -2789,6 +2715,119 @@ button:disabled, .btn-primary:disabled {
 }
 
 /* ==========================================================================
+   Brand Assets — app icon, hero banner card, CTA backdrop
+   ========================================================================== */
+
+/* App icon used as header / footer / auth logo mark */
+.brand-monogram-img {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  box-shadow: var(--shadow-md);
+  flex-shrink: 0;
+  transition: transform 0.3s var(--ease-spring), box-shadow 0.3s ease;
+}
+.brand-logo:hover .brand-monogram-img {
+  transform: rotate(-4deg) scale(1.06);
+  box-shadow: var(--shadow-lg), var(--shadow-glow-gold);
+}
+
+/* Hero banner card — sunrise brand photo + logo lockup + pillar links */
+.hero-banner-card {
+  position: relative;
+  width: min(100%, 580px);
+  aspect-ratio: 16 / 10;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--line-dark);
+  box-shadow: var(--shadow-xl);
+}
+.hero-banner-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation: kenburns 24s ease-in-out infinite alternate;
+  transform-origin: 60% 40%;
+}
+@keyframes kenburns {
+  0% { transform: scale(1) translate3d(0, 0, 0); }
+  100% { transform: scale(1.12) translate3d(-1.5%, -2%, 0); }
+}
+.hero-banner-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(247, 242, 232, 0.3) 0%,
+    rgba(247, 242, 232, 0.05) 32%,
+    rgba(7, 27, 51, 0) 52%,
+    rgba(7, 27, 51, 0.62) 100%
+  );
+}
+.hero-banner-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.1rem 0.9rem 0.9rem;
+}
+.hero-banner-logo {
+  width: min(74%, 400px);
+  filter: drop-shadow(0 8px 22px rgba(255, 255, 255, 0.45));
+  animation: logo-settle 1.2s var(--ease-spring) 0.4s both;
+}
+@keyframes logo-settle {
+  0% { opacity: 0; transform: translateY(14px) scale(0.96); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.hero-pillar-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.45rem;
+}
+.hero-pillar-chips a {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(7, 27, 51, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  backdrop-filter: blur(6px);
+  padding: 0.34rem 0.72rem;
+  border-radius: 100px;
+  transition: background-color 0.25s ease, transform 0.25s var(--ease-spring), box-shadow 0.25s ease;
+}
+.hero-pillar-chips a:hover {
+  background: rgba(7, 27, 51, 0.88);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* CTA banner over the dark brand backdrop */
+.cta-banner {
+  background:
+    linear-gradient(92deg, rgba(7, 27, 51, 0.9) 0%, rgba(7, 27, 51, 0.78) 55%, rgba(7, 27, 51, 0.55) 100%),
+    url('/brand/social-banner.jpg') center / cover no-repeat;
+  border-color: rgba(255, 255, 255, 0.14);
+}
+.cta-banner h2 { color: #fff; }
+.cta-banner p { color: #cfd9e6; }
+.cta-banner .btn-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.42);
+  backdrop-filter: blur(4px);
+}
+.cta-banner .btn-secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: #fff;
+}
+
+/* ==========================================================================
    Responsive Media Queries (Tested at 320px, 375px, 768px, 1024px, 1440px)
    ========================================================================== */
 
@@ -2796,7 +2835,8 @@ button:disabled, .btn-primary:disabled {
   .desktop-nav { display: none; }
   .mobile-hamburger { display: flex; }
   .hero-inner { grid-template-columns: 1fr; }
-  .hero-visual { display: none; }
+  .hero-visual { margin-top: 0.5rem; }
+  .hero-banner-card { width: 100%; }
   .ecosystem-grid { grid-template-columns: repeat(2, 1fr); }
   .cards-grid { grid-template-columns: repeat(2, 1fr); }
   .books-grid { grid-template-columns: repeat(2, 1fr); }
@@ -2845,6 +2885,8 @@ button:disabled, .btn-primary:disabled {
 
 @media (max-width: 480px) {
   .hero-title { font-size: 2.3rem; }
+  .hero-banner-logo { width: 88%; }
+  .hero-pillar-chips a { font-size: 0.66rem; padding: 0.28rem 0.6rem; }
   .hero-actions { flex-direction: column; width: 100%; }
   .hero-actions a { width: 100%; justify-content: center; }
   .hero-stats-row {
@@ -2883,7 +2925,6 @@ button:disabled, .btn-primary:disabled {
     transform: none !important;
   }
   .hero-scroll-hint,
-  .orb-ring,
   .btn-shine::after {
     display: none !important;
   }

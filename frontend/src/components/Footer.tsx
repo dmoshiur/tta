@@ -32,7 +32,7 @@ export const Footer: React.FC = () => {
         {/* Brand column */}
         <div className="footer-col brand-col">
           <Link to="/" className="brand-logo light" aria-label="ThinkTank Academia Home">
-            <span className="brand-monogram">TT</span>
+            <img src="/icon.svg" alt="" className="brand-monogram-img" />
             <div className="brand-text">
               <span className="brand-name">ThinkTank</span>
               <span className="brand-sub">ACADEMIA</span>
