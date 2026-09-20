@@ -11,7 +11,7 @@ export const MobileBottomNav: React.FC = () => {
   const itemClass = ({ isActive }: { isActive: boolean }) => (isActive ? 'bottom-item active' : 'bottom-item');
 
   return (
-    <nav className="mobile-bottom-bar" aria-label="Mobile bottom navigation">
+    <nav className="mobile-bottom-bar" aria-label={t('a11y.bottomNav')}>
       <NavLink to="/" className={itemClass} end>
         <span className="bottom-icon"><IconHome size={21} /></span>
         <span className="bottom-label">{t('nav.home')}</span>

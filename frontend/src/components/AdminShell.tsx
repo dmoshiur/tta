@@ -83,12 +83,12 @@ export const AdminShell: React.FC<{ children: React.ReactNode }> = ({ children }
       {sideOpen && <div className="admin-side-backdrop" onClick={() => setSideOpen(false)} />}
       <aside className={`admin-sidebar ${sideOpen ? 'open' : ''}`}>
         <div className="admin-side-brand">
-          <Link to="/" className="brand-logo" onClick={() => setSideOpen(false)} aria-label="ThinkTank Academia — Home">
+          <Link to="/" className="brand-logo" onClick={() => setSideOpen(false)} aria-label={t('a11y.home')}>
             <BrandLogo surface="dark" />
           </Link>
         </div>
 
-        <nav className="admin-side-nav" aria-label="Admin Navigation">
+        <nav className="admin-side-nav" aria-label={t('a11y.adminNavLabel')}>
           {NAV_GROUPS.map((group) => (
             <div className="admin-side-group" key={group.titleKey}>
               <p className="admin-side-title">{t(group.titleKey)}</p>

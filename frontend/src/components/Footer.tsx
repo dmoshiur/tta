@@ -34,7 +34,7 @@ export const Footer: React.FC = () => {
       {/* Brand row — official dark-surface logo, large */}
       <div className="footer-brand-row">
         <div className="footer-brand-text">
-          <Link to="/" aria-label="ThinkTank Academia — Home">
+          <Link to="/" aria-label={t('a11y.home')}>
             <BrandLogo surface="dark" className="footer-brand-logo" />
           </Link>
           <div className="footer-social-links">

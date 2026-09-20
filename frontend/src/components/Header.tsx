@@ -95,12 +95,12 @@ export const Header: React.FC = () => {
       <header className={`tta-header${scrolled ? ' is-scrolled' : ''}`}>
         <div className="header-inner">
           {/* Official brand logo (contains its own wordmark) */}
-          <Link to="/" className="brand-logo" aria-label="ThinkTank Academia — Home">
+          <Link to="/" className="brand-logo" aria-label={t('a11y.home')}>
             <BrandLogo surface="light" />
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="desktop-nav" aria-label="Main navigation">
+          <nav className="desktop-nav" aria-label={t('a11y.mainNav')}>
             <NavLink to="/" end className={({ isActive }) => (isActive ? 'nav-link home-link active' : 'nav-link home-link')}>
               {t('nav.home')}
             </NavLink>
@@ -213,7 +213,7 @@ export const Header: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="drawer-header">
-              <Link to="/" className="brand-logo" onClick={() => setMobileOpen(false)} aria-label="ThinkTank Academia — Home">
+              <Link to="/" className="brand-logo" onClick={() => setMobileOpen(false)} aria-label={t('a11y.home')}>
                 <BrandLogo surface="light" />
               </Link>
               <button className="drawer-close" onClick={() => setMobileOpen(false)} aria-label={t('nav.closeMenu')}>
@@ -242,7 +242,7 @@ export const Header: React.FC = () => {
               </div>
             )}
 
-            <nav className="drawer-nav" aria-label="Mobile navigation">
+            <nav className="drawer-nav" aria-label={t('a11y.mobileNav')}>
               <NavLink to="/" end onClick={() => setMobileOpen(false)} className="drawer-home-link">
                 {t('nav.home')}
               </NavLink>
