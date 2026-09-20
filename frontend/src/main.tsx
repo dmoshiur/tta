@@ -9,6 +9,7 @@ import { ToastProvider } from './context/ToastContext.tsx';
 import { Header } from './components/Header.tsx';
 import { Footer } from './components/Footer.tsx';
 import { MobileBottomNav } from './components/MobileBottomNav.tsx';
+import { ScrollProgress } from './components/ScrollProgress.tsx';
 import { discoveryApi } from './api.ts';
 
 // Public pages
@@ -71,6 +72,7 @@ export const App: React.FC = () => {
       <AuthProvider>
         <ToastProvider>
           <RouteObserver />
+          <ScrollProgress />
           <div className="app-shell">
             <Header />
 
