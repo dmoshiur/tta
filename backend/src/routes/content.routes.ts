@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { all, one, run } from '../db/index.ts';
 import { notFound } from '../lib/errors.ts';
 import { like, ok, pagination, paged, route } from '../lib/http.ts';
-import { fromJson } from '../lib/util.ts';
+import { fromJson, fromArray } from '../lib/util.ts';
 import { optionalAuth } from '../middleware/auth.ts';
 import type { SessionUser } from '../security/session.ts';
 
@@ -29,7 +29,7 @@ function publicContent(row: Record<string, any>) {
     category_slug: row.category_slug ?? null,
     author: (row.author_name || row.author) ?? 'ThinkTank Editorial',
     stance: row.stance ?? 'ANALYSIS',
-    tags: row.tags ?? [],
+    tags: fromArray(row.tags),
     reading_minutes: Number(row.reading_minutes ?? 1),
     is_featured: Boolean(row.is_featured),
     views: Number(row.views ?? 0),
@@ -52,7 +52,7 @@ function publicBook(row: Record<string, any>) {
     description: row.description,
     category: row.category ?? null,
     category_slug: row.category_slug ?? null,
-    tags: row.tags ?? [],
+    tags: fromArray(row.tags),
     is_featured: Boolean(row.is_featured),
     views: Number(row.views ?? 0),
     status: row.status,

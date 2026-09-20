@@ -1,5 +1,9 @@
 # Render deployment
 
-Use `render.yaml` to create the web service and PostgreSQL database. Set both public URL values to the final HTTPS service URL. Build is `npm ci && npm run build`; start is `npm start`; health is `/api/health`. The server binds `0.0.0.0:$PORT`. Production has no generated localhost URL. Configure an external image provider (Cloudinary/S3-compatible) and submit its HTTPS asset URLs through admin APIs; ephemeral local uploads are intended only for development avatars.
+Use `render.yaml` to create the web service. The database is external: create a **Turso** database (`turso db create thinktank`, then `turso db show thinktank --url` / `--auth-token`) and set `DATABASE_URL` to the returned `libsql://` URL — Render's managed PostgreSQL is no longer used.
 
-After deploy: check health, create/login initial admin, rotate or remove `ADMIN_PASSWORD`, create categories/content, verify sitemap/robots, enrollment, quiz submission, and mobile layouts.
+Set both public URL values to the final HTTPS service URL. Also set `SUPER_ADMIN_EMAIL`/`SUPER_ADMIN_PASSWORD` (admin console owner, seeded on first boot), `HACKER_ADMIN_EMAIL` (hourly passcode recipient) and the `SMTP_*` variables used to deliver the passcode e-mail.
+
+Build is `npm ci && npm run build`; start is `npm start`; health is `/api/health`. The server binds `0.0.0.0:$PORT`. Production has no generated localhost URL. Configure an external image provider (Cloudinary/S3-compatible) and submit its HTTPS asset URLs through admin APIs; ephemeral local uploads are intended only for development avatars.
+
+After deploy: check health, verify the first passcode e-mail arrives at `HACKER_ADMIN_EMAIL`, open `/hackeradmin`, log in, and confirm the console shows traffic. Then create/login the initial admin, rotate or remove the seed `SUPER_ADMIN_PASSWORD`, create categories/content, verify sitemap/robots, enrollment, quiz submission, and mobile layouts.

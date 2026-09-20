@@ -16,7 +16,7 @@ ThinkTank API ── Android App (Kotlin / Jetpack Compose)
                └── Admin Management Console
                      │
                      ↓
-             PostgreSQL Database
+             Turso SQLite Database
 ```
 
 - **Base URL:** `https://YOUR_SERVICE.onrender.com/api/v1/`

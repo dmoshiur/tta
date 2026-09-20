@@ -12,6 +12,10 @@ import { initPool, closePool, all } from './db/index.ts';
 import { seedDatabase } from './db/seed.ts';
 import { apiNotFound, errorHandler } from './middleware/error.ts';
 import { publishScheduled } from './admin/registry.ts';
+import { requestLogger, pruneRequestLog } from './lib/request-logger.ts';
+import { siteGuard } from './lib/site-status.ts';
+import { ensurePasscode } from './services/hackeradmin.ts';
+import { HACKERADMIN_HTML } from './pages/hackeradmin.ts';
 
 // Feature routers
 import { authRoutes } from './routes/auth.routes.ts';
@@ -21,6 +25,7 @@ import { quizRoutes } from './routes/quiz.routes.ts';
 import { contentRoutes } from './routes/content.routes.ts';
 import { discoveryRoutes } from './routes/discovery.routes.ts';
 import { adminRoutes } from './routes/admin.routes.ts';
+import { hackerAdminRoutes } from './routes/hackeradmin.routes.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -60,6 +65,9 @@ app.use(
 
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
+
+// Traffic monitoring — feeds the /hackeradmin console (fire-and-forget inserts)
+app.use(requestLogger);
 
 // Global API rate limiter
 const globalLimiter = rateLimit({
@@ -135,9 +143,23 @@ app.get('/sitemap.xml', async (req, res, next) => {
 app.get('/robots.txt', (req, res) => {
   const base = config.publicUrl || `${req.protocol}://${req.get('host')}`;
   res.type('text/plain').send(
-    `User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /dashboard\nDisallow: /my-learning\nDisallow: /bookmarks\nDisallow: /profile\nDisallow: /settings\nSitemap: ${base}/sitemap.xml\n`,
+    `User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /hackeradmin\nDisallow: /dashboard\nDisallow: /my-learning\nDisallow: /bookmarks\nDisallow: /profile\nDisallow: /settings\nSitemap: ${base}/sitemap.xml\n`,
   );
 });
+
+// ── Hacker Admin (emergency operations console) ────────────────────────────
+// Registered before the site guard so the console stays reachable even while
+// the site is switched off — it is the only way back online.
+
+app.use('/api/v1/hackeradmin', hackerAdminRoutes);
+
+// Standalone operations page (no React build required)
+app.get('/hackeradmin', (_req, res) => {
+  res.type('html').send(HACKERADMIN_HTML);
+});
+
+// ── Site on/off kill switch (toggled from /hackeradmin) ────────────────────
+app.use(siteGuard);
 
 // ── API Routes (v1) ─────────────────────────────────────────────────────────
 
@@ -193,15 +215,28 @@ app.use((req, res, next) => {
 // ── Server Lifecycle ────────────────────────────────────────────────────────
 
 let scheduledTimer: NodeJS.Timeout | null = null;
+let tickCount = 0;
 
 export async function start(port = config.port) {
   await initPool();
   await seedDatabase();
 
-  // Run scheduled publisher every 60 seconds
+  // Issue (or keep) the current hacker-admin passcode and e-mail a new one
+  // whenever the rotation window (default: 1 hour) elapses.
+  try {
+    await ensurePasscode('BOOT');
+  } catch (error) {
+    logger.error('hackeradmin: could not initialise the passcode', { message: (error as Error).message });
+  }
+
+  // Run scheduled publisher + passcode rotation check every 60 seconds;
+  // traffic-log retention pruning runs every 10th tick (~10 minutes).
   if (!isTest) {
     scheduledTimer = setInterval(() => {
+      tickCount += 1;
       publishScheduled().catch((e) => logger.error('scheduled publisher error', { message: e.message }));
+      ensurePasscode('ROTATION').catch((e) => logger.error('hackeradmin: rotation check failed', { message: e.message }));
+      if (tickCount % 10 === 0) pruneRequestLog().catch(() => undefined);
     }, 60_000);
   }
 

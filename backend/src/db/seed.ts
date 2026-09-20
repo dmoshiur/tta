@@ -197,6 +197,15 @@ async function seedSettings(): Promise<void> {
       await insert('settings', { key, value: json(setting.value), is_public: setting.isPublic });
     }
   }
+  // The site kill-switch (toggled from the /hackeradmin panel). Starts enabled.
+  const switchRow = await one<{ key: string }>("SELECT key FROM settings WHERE key = 'site_switch'");
+  if (!switchRow) {
+    await insert('settings', {
+      key: 'site_switch',
+      value: json({ enabled: true, note: '', updated_by: 'system', updated_at: new Date().toISOString() }),
+      is_public: false,
+    });
+  }
   const version = await one<{ key: string }>("SELECT key FROM settings WHERE key = 'schema_version'");
   if (!version) {
     await insert('settings', { key: 'schema_version', value: json({ version: SCHEMA_VERSION }), is_public: false });
@@ -386,43 +395,61 @@ async function seedLibrary(categoryIds: Record<string, string>): Promise<void> {
 }
 
 /**
- * Creates the first administrator from ADMIN_EMAIL / ADMIN_PASSWORD.
- * Idempotent: an existing address is never touched, and the password is never logged.
+ * Creates the platform administrators from .env, on first boot only.
+ *  • SUPER_ADMIN_EMAIL / SUPER_ADMIN_PASSWORD (falls back to ADMIN_*)
+ *  • ADMIN_EMAIL / ADMIN_PASSWORD (legacy variable, still honoured)
+ *
+ * Idempotent: an existing address is never touched, and passwords are never logged.
  */
-export async function seedAdministrator(roleIds: Record<string, string>): Promise<{ created: boolean; email?: string }> {
-  const email = config.admin.email;
-  const password = config.admin.password;
-  if (!email || !password) {
-    logger.warn('admin seed: ADMIN_EMAIL / ADMIN_PASSWORD are not set — no administrator was created');
-    return { created: false };
-  }
-  const existing = await one<{ id: string }>('SELECT id FROM users WHERE email = $1', [email]);
-  if (existing) return { created: false, email };
+export async function seedAdministrators(roleIds: Record<string, string>): Promise<{ created: string[] }> {
+  const accounts = new Map<string, { email: string; password: string; name: string }>();
 
-  if (password.length < 8) {
-    logger.error('admin seed: ADMIN_PASSWORD is shorter than 8 characters — refusing to create the administrator');
-    return { created: false, email };
+  const candidates = [
+    { email: config.superAdmin.email, password: config.superAdmin.password, name: config.superAdmin.name, label: 'super admin' },
+    { email: config.admin.email, password: config.admin.password, name: config.admin.name, label: 'admin' },
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate.email || !candidate.password) continue;
+    if (accounts.has(candidate.email)) continue;
+    if (candidate.password.length < 8) {
+      logger.error(`admin seed: ${candidate.label} password is shorter than 8 characters — refusing to create ${candidate.label}`);
+      continue;
+    }
+    accounts.set(candidate.email, candidate);
   }
 
-  const hash = await bcrypt.hash(password, 12);
-  await insert('users', {
-    id: newId(),
-    email,
-    password_hash: hash,
-    name: config.admin.name,
-    role_id: roleIds.SUPER_ADMIN,
-    is_active: true,
-    email_verified: true,
-  });
-  await run('INSERT INTO activity_log(id, actor_name, action, entity_type, entity_label) VALUES($1, $2, $3, $4, $5)', [
-    newId(),
-    'system',
-    'ADMIN_SEEDED',
-    'USER',
-    email,
-  ]);
-  logger.info('admin seed: initial super administrator created', { email });
-  return { created: true, email };
+  const created: string[] = [];
+  for (const account of accounts.values()) {
+    const existing = await one<{ id: string }>('SELECT id FROM users WHERE email = $1', [account.email]);
+    if (existing) continue;
+
+    const hash = await bcrypt.hash(account.password, 12);
+    const isSuper = config.superAdmin.email && account.email === config.superAdmin.email;
+    const roleId = roleIds.SUPER_ADMIN;
+    await insert('users', {
+      id: newId(),
+      email: account.email,
+      password_hash: hash,
+      name: account.name,
+      role_id: roleId,
+      is_active: true,
+      email_verified: true,
+    });
+    await run('INSERT INTO activity_log(id, actor_name, action, entity_type, entity_label) VALUES($1, $2, $3, $4, $5)', [
+      newId(),
+      'system',
+      isSuper ? 'SUPER_ADMIN_SEEDED' : 'ADMIN_SEEDED',
+      'USER',
+      account.email,
+    ]);
+    logger.info(`admin seed: initial ${isSuper ? 'super' : ''} administrator created`, { email: account.email });
+    created.push(account.email);
+  }
+  if (!created.length) {
+    logger.info('admin seed: no new administrator accounts required');
+  }
+  return { created };
 }
 
 export async function applySchema(): Promise<void> {
@@ -437,7 +464,7 @@ export async function seedDatabase(): Promise<void> {
   const roleIds = await seedRoles();
   const categoryIds = await seedCategories();
   await seedSettings();
-  await seedAdministrator(roleIds);
+  await seedAdministrators(roleIds);
 
   if (config.seedDemoContent) {
     const courseCount = await count('courses');

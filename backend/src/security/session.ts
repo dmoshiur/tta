@@ -57,7 +57,7 @@ function mapUser(row: Row, permissions: string[]): SessionUser {
     roleLabel: row.role_label ?? 'Learner',
     roleLevel: Number(row.role_level ?? 1),
     permissions,
-    isActive: row.is_active !== false,
+    isActive: Boolean(row.is_active),
   };
 }
 

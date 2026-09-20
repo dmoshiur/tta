@@ -6,3 +6,5 @@ uploads/*
 *.log
 .DS_Store
 coverage/
+# Local SQLite development database (Turso URL in .env is used in production)
+data/

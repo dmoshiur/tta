@@ -4,6 +4,9 @@ import assert from 'node:assert/strict';
 process.env.NODE_ENV = 'test';
 process.env.ADMIN_EMAIL = 'admin@thinktankacademia.org';
 process.env.ADMIN_PASSWORD = 'super-secure-admin-pass';
+process.env.SUPER_ADMIN_EMAIL = 'super@thinktankacademia.org';
+process.env.SUPER_ADMIN_PASSWORD = 'super-secure-admin-pass';
+process.env.HACKER_ADMIN_DEV_PASSCODE = 'DEV-C0DE';
 
 const { start, stop } = await import('../backend/src/server.ts');
 
@@ -234,6 +237,295 @@ test('admin overview and access control', async () => {
     headers: { Authorization: `Bearer ${learnerToken}` },
   });
   assert.equal(forbiddenRes.status, 403);
+});
+
+test('admin console: generic resource CRUD, users and roles', async () => {
+  const adminLogin = await fetch(base + '/api/v1/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@thinktankacademia.org', password: 'super-secure-admin-pass' }),
+  });
+  const adminToken = ((await adminLogin.json()) as any).data.token;
+  const adminHeaders = { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' };
+
+  // Generic resource list (courses) — exercises the dynamic admin registry on SQLite
+  const listRes = await fetch(base + '/api/v1/admin/r/courses?page=1', { headers: adminHeaders });
+  assert.equal(listRes.status, 200);
+  const list = (await listRes.json()) as any;
+  assert.ok(list.data.items.length > 0);
+  assert.ok(Array.isArray(list.data.items[0].tags), 'tags must come back as an array');
+
+  // Create a new category through the generic CRUD
+  const createRes = await fetch(base + '/api/v1/admin/r/categories', {
+    method: 'POST',
+    headers: adminHeaders,
+    body: JSON.stringify({ name: 'Test Category', slug: 'test-category-xyz', section: 'GENERAL' }),
+  });
+  assert.equal(createRes.status, 201);
+  const created = (await createRes.json()) as any;
+  assert.ok(created.data.id);
+
+  // Update it
+  const patchRes = await fetch(base + `/api/v1/admin/r/categories/${created.data.id}`, {
+    method: 'PATCH',
+    headers: adminHeaders,
+    body: JSON.stringify({ description: 'updated via test' }),
+  });
+  assert.equal(patchRes.status, 200);
+
+  // Delete it
+  const delRes = await fetch(base + `/api/v1/admin/r/categories/${created.data.id}`, {
+    method: 'DELETE',
+    headers: adminHeaders,
+  });
+  assert.equal(delRes.status, 200);
+
+  // Course lifecycle through the generic CRUD — exercises joined selects and
+  // JSON columns (tags/seo) round-tripping as text on SQLite.
+  const courseRes = await fetch(base + '/api/v1/admin/r/courses', {
+    method: 'POST',
+    headers: adminHeaders,
+    body: JSON.stringify({
+      title: 'Regression Course',
+      slug: 'regression-course-xyz',
+      summary: 'Created by the admin console test.',
+      section: 'GENERAL',
+      difficulty: 'BEGINNER',
+      status: 'DRAFT',
+      is_featured: false,
+      tags: ['alpha', 'beta'],
+      seo_title: 'SEO title',
+      seo_description: 'SEO description',
+    }),
+  });
+  assert.equal(courseRes.status, 201);
+  const newCourse = (await courseRes.json()) as any;
+  assert.ok(newCourse.data.id);
+  assert.deepEqual(newCourse.data.tags, ['alpha', 'beta']);
+  assert.equal(newCourse.data.seo_title, 'SEO title');
+
+  // Item fetch through the joined select
+  const itemRes = await fetch(base + `/api/v1/admin/r/courses/${newCourse.data.id}`, { headers: adminHeaders });
+  assert.equal(itemRes.status, 200);
+  const item = (await itemRes.json()) as any;
+  assert.equal(item.data.slug, 'regression-course-xyz');
+  assert.deepEqual(item.data.tags, ['alpha', 'beta']);
+
+  // Filtered + searched list through the aliased join select
+  const filteredRes = await fetch(base + '/api/v1/admin/r/courses?status=DRAFT&section=GENERAL&q=regression', {
+    headers: adminHeaders,
+  });
+  assert.equal(filteredRes.status, 200);
+  const filtered = (await filteredRes.json()) as any;
+  assert.ok(filtered.data.items.some((c: any) => c.id === newCourse.data.id));
+
+  // Title-only patch must preserve the JSON columns
+  const coursePatch = await fetch(base + `/api/v1/admin/r/courses/${newCourse.data.id}`, {
+    method: 'PATCH',
+    headers: adminHeaders,
+    body: JSON.stringify({ title: 'Regression Course v2' }),
+  });
+  assert.equal(coursePatch.status, 200);
+  const patched = (await coursePatch.json()) as any;
+  assert.equal(patched.data.title, 'Regression Course v2');
+  assert.deepEqual(patched.data.tags, ['alpha', 'beta']);
+
+  // Publish toggle + cleanup
+  const publishRes = await fetch(base + `/api/v1/admin/r/courses/${newCourse.data.id}/publish`, {
+    method: 'POST',
+    headers: adminHeaders,
+  });
+  assert.equal(publishRes.status, 200);
+  assert.equal(((await publishRes.json()) as any).data.status, 'PUBLISHED');
+
+  const courseDel = await fetch(base + `/api/v1/admin/r/courses/${newCourse.data.id}`, {
+    method: 'DELETE',
+    headers: adminHeaders,
+  });
+  assert.equal(courseDel.status, 200);
+
+  // User management
+  const usersRes = await fetch(base + '/api/v1/admin/users', { headers: adminHeaders });
+  assert.equal(usersRes.status, 200);
+  const users = (await usersRes.json()) as any;
+  assert.ok(users.data.items.length >= 2);
+
+  const newUserRes = await fetch(base + '/api/v1/admin/users', {
+    method: 'POST',
+    headers: adminHeaders,
+    body: JSON.stringify({
+      name: 'Content Person',
+      email: 'content@example.com',
+      password: 'StrongPassword123',
+      role_id: (await (await fetch(base + '/api/v1/admin/roles', { headers: adminHeaders })).json()).data.roles.find(
+        (r: any) => r.name === 'CONTENT_ADMIN',
+      ).id,
+    }),
+  });
+  assert.equal(newUserRes.status, 201);
+  const newUser = (await newUserRes.json()) as any;
+  assert.equal(newUser.data.role_name, 'CONTENT_ADMIN');
+
+  // Roles & permissions
+  const rolesRes = await fetch(base + '/api/v1/admin/roles', { headers: adminHeaders });
+  assert.equal(rolesRes.status, 200);
+  const rolesData = (await rolesRes.json()) as any;
+  assert.ok(rolesData.data.roles.length >= 5);
+  assert.ok(rolesData.data.permissions.length >= 10);
+});
+
+test('account self-deletion cascades user-owned rows (media uploaded_by etc.)', async () => {
+  const reg = await fetch(base + '/api/v1/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'Cascading User', email: 'cascade@example.com', password: 'StrongPassword123' }),
+  });
+  assert.equal(reg.status, 201);
+  const token = ((await reg.json()) as any).data.token;
+
+  // Upload an avatar — inserts a media row with uploaded_by = this user.
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+    'base64',
+  );
+  const form = new FormData();
+  form.append('file', new Blob([png], { type: 'image/png' }), 'cascade.png');
+  const avatar = await fetch(base + '/api/v1/users/me/avatar', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  assert.equal(avatar.status, 201);
+
+  // Deleting the account must succeed despite the media row referencing it.
+  const del = await fetch(base + '/api/v1/users/me', {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: 'StrongPassword123' }),
+  });
+  assert.equal(del.status, 200);
+});
+
+test('hackeradmin: passcode login, site switch, traffic and admin views', async () => {
+  // Status endpoint is public (login screen data)
+  const statusRes = await fetch(base + '/api/v1/hackeradmin/status');
+  assert.equal(statusRes.status, 200);
+  const statusData = (await statusRes.json()) as any;
+  assert.ok(statusData.data.ttlMinutes > 0);
+  assert.ok(statusData.data.rotations >= 1);
+
+  // Wrong passcode rejected
+  const badLogin = await fetch(base + '/api/v1/hackeradmin/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ passcode: 'WRONG-CODE' }),
+  });
+  assert.equal(badLogin.status, 401);
+
+  // Correct development passcode accepted
+  const loginRes = await fetch(base + '/api/v1/hackeradmin/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ passcode: 'DEV-C0DE' }),
+  });
+  assert.equal(loginRes.status, 200);
+  const loginData = (await loginRes.json()) as any;
+  assert.ok(loginData.data.token);
+  const hackerHeaders = { Authorization: `Bearer ${loginData.data.token}`, 'Content-Type': 'application/json' };
+
+  // Unauthenticated access to protected endpoints is rejected
+  const noAuth = await fetch(base + '/api/v1/hackeradmin/overview');
+  assert.equal(noAuth.status, 401);
+
+  // Overview
+  const overviewRes = await fetch(base + '/api/v1/hackeradmin/overview', { headers: hackerHeaders });
+  assert.equal(overviewRes.status, 200);
+  const overview = (await overviewRes.json()) as any;
+  assert.equal(overview.data.site.enabled, true);
+  assert.ok(overview.data.stats.users >= 3);
+
+  // Traffic + visitors (there is logged traffic from earlier tests)
+  const trafficRes = await fetch(base + '/api/v1/hackeradmin/traffic', { headers: hackerHeaders });
+  assert.equal(trafficRes.status, 200);
+  const traffic = (await trafficRes.json()) as any;
+  assert.ok(traffic.data.totals.total > 0);
+  assert.ok(traffic.data.recent.length > 0);
+
+  const visitorsRes = await fetch(base + '/api/v1/hackeradmin/visitors', { headers: hackerHeaders });
+  assert.equal(visitorsRes.status, 200);
+  const visitors = (await visitorsRes.json()) as any;
+  assert.ok(visitors.data.unique_visitors[1].total >= 1);
+
+  // Admins & super admin views
+  const adminsRes = await fetch(base + '/api/v1/hackeradmin/admins', { headers: hackerHeaders });
+  assert.equal(adminsRes.status, 200);
+  const admins = (await adminsRes.json()) as any;
+  assert.ok(admins.data.length >= 2);
+  assert.ok(admins.data.some((a: any) => a.role_name === 'SUPER_ADMIN'));
+
+  const superRes = await fetch(base + '/api/v1/hackeradmin/superadmin', { headers: hackerHeaders });
+  assert.equal(superRes.status, 200);
+  const superData = (await superRes.json()) as any;
+  assert.equal(superData.data.configured.email, 'super@thinktankacademia.org');
+  assert.ok(superData.data.super_admins.length >= 1);
+
+  // The super admin seeded from SUPER_ADMIN_EMAIL can log in to the admin console
+  const superLogin = await fetch(base + '/api/v1/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: 'super@thinktankacademia.org', password: 'super-secure-admin-pass' }),
+  });
+  assert.equal(superLogin.status, 200);
+  const superToken = ((await superLogin.json()) as any).data.token;
+  const superOverview = await fetch(base + '/api/v1/admin/overview', {
+    headers: { Authorization: `Bearer ${superToken}` },
+  });
+  assert.equal(superOverview.status, 200);
+
+  // Site kill switch: OFF takes the public API down, hacker console stays up
+  const offRes = await fetch(base + '/api/v1/hackeradmin/site/toggle', {
+    method: 'POST',
+    headers: hackerHeaders,
+    body: JSON.stringify({ enabled: false, note: 'maintenance test' }),
+  });
+  assert.equal(offRes.status, 200);
+
+  const coursesWhileOff = await fetch(base + '/api/v1/courses');
+  assert.equal(coursesWhileOff.status, 503);
+  const offBody = (await coursesWhileOff.json()) as any;
+  assert.equal(offBody.error.code, 'SITE_OFFLINE');
+
+  // Health + hacker admin survive the shutdown
+  const healthWhileOff = await fetch(base + '/api/health');
+  assert.equal(healthWhileOff.status, 200);
+  const hackerWhileOff = await fetch(base + '/api/v1/hackeradmin/overview', { headers: hackerHeaders });
+  assert.equal(hackerWhileOff.status, 200);
+  assert.equal(((await hackerWhileOff.json()) as any).data.site.enabled, false);
+
+  // Back online
+  const onRes = await fetch(base + '/api/v1/hackeradmin/site/toggle', {
+    method: 'POST',
+    headers: hackerHeaders,
+    body: JSON.stringify({ enabled: true }),
+  });
+  assert.equal(onRes.status, 200);
+  const coursesBack = await fetch(base + '/api/v1/courses');
+  assert.equal(coursesBack.status, 200);
+
+  // Manual passcode rotation works and logs a new window
+  const rotateRes = await fetch(base + '/api/v1/hackeradmin/passcode/regenerate', {
+    method: 'POST',
+    headers: hackerHeaders,
+  });
+  assert.equal(rotateRes.status, 200);
+  const rotateData = (await rotateRes.json()) as any;
+  assert.ok(rotateData.data.expiresAt);
+
+  // The /hackeradmin page is served
+  const pageRes = await fetch(base + '/hackeradmin');
+  assert.equal(pageRes.status, 200);
+  const page = await pageRes.text();
+  assert.ok(page.includes('HACKER ADMIN'));
 });
 
 test.after(async () => {

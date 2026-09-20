@@ -71,6 +71,27 @@ export const config = {
     password: str('ADMIN_PASSWORD'),
     name: str('ADMIN_NAME', 'Administrator'),
   },
+  /** The Super Admin account. Set SUPER_ADMIN_EMAIL in .env — it is seeded on boot. */
+  superAdmin: {
+    email: (str('SUPER_ADMIN_EMAIL') || str('ADMIN_EMAIL')).toLowerCase(),
+    password: str('SUPER_ADMIN_PASSWORD') || str('ADMIN_PASSWORD'),
+    name: str('SUPER_ADMIN_NAME') || str('ADMIN_NAME', 'Administrator'),
+  },
+  /**
+   * Hacker admin (emergency operations console at /hackeradmin).
+   * A short-lived passcode is generated every rotation window and e-mailed
+   * to the configured operator address through SMTP.
+   */
+  hackerAdmin: {
+    enabled: bool('HACKER_ADMIN_ENABLED', true),
+    email: (str('HACKER_ADMIN_EMAIL') || 'mdmoshiurrahmanmohi1@gmail.com').toLowerCase(),
+    /** Passcode lifetime in minutes — the code changes automatically after this window. */
+    passcodeTtlMinutes: int('HACKER_ADMIN_PASSCODE_TTL_MINUTES', 60),
+    /** Development-only fixed passcode (honoured outside production). */
+    devPasscode: str('HACKER_ADMIN_DEV_PASSCODE'),
+    /** Maximum passcode attempts per IP per 15 minutes. */
+    maxLoginAttempts: int('HACKER_ADMIN_MAX_ATTEMPTS', 10),
+  },
   seedDemoContent: bool('SEED_DEMO_CONTENT', true),
   storage: {
     driver: (str('STORAGE_DRIVER', isProduction ? 's3' : 'local') as 'local' | 's3'),
