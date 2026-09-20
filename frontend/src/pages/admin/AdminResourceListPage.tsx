@@ -4,8 +4,9 @@ import { adminApi } from '../../api.ts';
 import { useToast } from '../../context/ToastContext.tsx';
 import { LoadingState, EmptyState, ErrorState } from '../../components/States.tsx';
 
-export const AdminResourceListPage: React.FC = () => {
-  const { resource = '' } = useParams<{ resource: string }>();
+export const AdminResourceListPage: React.FC<{ fixedResource?: string }> = ({ fixedResource }) => {
+  const routeParams = useParams<{ resource: string }>();
+  const resource = fixedResource ?? routeParams.resource ?? '';
   const [searchParams, setSearchParams] = useSearchParams();
   const qParam = searchParams.get('q') || '';
   const pageParam = parseInt(searchParams.get('page') || '1', 10);
@@ -97,7 +98,7 @@ export const AdminResourceListPage: React.FC = () => {
       <header className="admin-page-header">
         <div className="admin-header-title-wrap">
           <div className="admin-breadcrumbs">
-            <Link to="/admin">Admin Hub</Link>
+            <Link to="/admin/dashboard">Super Admin</Link>
             <span>/</span>
             <span>{meta?.label || resource}</span>
           </div>

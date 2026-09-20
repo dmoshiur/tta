@@ -365,6 +365,7 @@ hackerAdminRoutes.post(
         <p style="line-height:1.7">Current passcode window expires ${new Date(state.expiresAt).toUTCString()}.</p>
       </div>`,
       `SMTP test from the ThinkTank Academia operations console.\nSent: ${new Date().toUTCString()}\nCurrent passcode window expires: ${new Date(state.expiresAt).toUTCString()}`,
+      'HACKER_ADMIN',
     );
     ok(res, {
       delivered: result.delivered,

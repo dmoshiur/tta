@@ -448,4 +448,28 @@ export const schema: string[] = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_request_log_created ON request_log(created_at)`,
   `CREATE INDEX IF NOT EXISTS idx_request_log_path ON request_log(path)`,
+
+  // ── Super Admin console: outgoing mail audit trail ─────────────────────
+  `CREATE TABLE IF NOT EXISTS smtp_log (
+    id TEXT PRIMARY KEY,
+    to_email TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'TRANSACTIONAL',
+    status TEXT NOT NULL,
+    error TEXT NOT NULL DEFAULT '',
+    actor_id TEXT,
+    created_at TEXT NOT NULL DEFAULT ${NOW}
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_smtp_log_created ON smtp_log(created_at)`,
+
+  // ── Super Admin console: database backup metadata ──────────────────────
+  `CREATE TABLE IF NOT EXISTS backups (
+    id TEXT PRIMARY KEY,
+    filename TEXT NOT NULL,
+    size_bytes INTEGER NOT NULL DEFAULT 0,
+    table_counts TEXT NOT NULL DEFAULT '{}',
+    note TEXT NOT NULL DEFAULT '',
+    created_by TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT ${NOW}
+  )`,
 ];

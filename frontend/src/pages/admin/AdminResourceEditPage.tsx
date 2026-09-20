@@ -117,7 +117,7 @@ export const AdminResourceEditPage: React.FC = () => {
       <header className="admin-page-header">
         <div className="admin-header-title-wrap">
           <div className="admin-breadcrumbs">
-            <Link to="/admin">Admin Hub</Link>
+            <Link to="/admin/dashboard">Super Admin</Link>
             <span>/</span>
             <Link to={`/admin/r/${resource}`}>{meta.label}</Link>
             <span>/</span>

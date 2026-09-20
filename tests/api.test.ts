@@ -374,6 +374,123 @@ test('admin console: generic resource CRUD, users and roles', async () => {
   assert.ok(rolesData.data.permissions.length >= 10);
 });
 
+test('super admin console: system health, audit, security, e-mail and backups', async () => {
+  const adminLogin = await fetch(base + '/api/v1/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@thinktankacademia.org', password: 'super-secure-admin-pass' }),
+  });
+  const adminToken = ((await adminLogin.json()) as any).data.token;
+  const adminHeaders = { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' };
+
+  // A failed login first, so the security overview has a LOGIN_FAILED record.
+  await fetch(base + '/api/v1/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: 'ghost@example.com', password: 'WrongPassword1' }),
+  });
+
+  // System health
+  const healthRes = await fetch(base + '/api/v1/admin/system/health', { headers: adminHeaders });
+  assert.equal(healthRes.status, 200);
+  const health = (await healthRes.json()) as any;
+  assert.ok(health.data.runtime.uptime_seconds >= 0);
+  assert.ok(['memory', 'file', 'turso'].includes(health.data.database.mode));
+  assert.ok(health.data.table_counts.users >= 1);
+  assert.ok(typeof health.data.traffic_24h.requests === 'number');
+
+  // API & error logs
+  const apiLogsRes = await fetch(base + '/api/v1/admin/system/api-logs?view=errors', { headers: adminHeaders });
+  assert.equal(apiLogsRes.status, 200);
+  const apiLogs = (await apiLogsRes.json()) as any;
+  assert.ok(Array.isArray(apiLogs.data.items));
+  assert.ok(apiLogs.data.stats.last_24h >= 0);
+  for (const row of apiLogs.data.items) assert.ok(row.status >= 400);
+
+  // Audit logs with search + filters
+  const auditRes = await fetch(base + '/api/v1/admin/audit-logs?q=LOGIN', { headers: adminHeaders });
+  assert.equal(auditRes.status, 200);
+  const audit = (await auditRes.json()) as any;
+  assert.ok(audit.data.items.some((row: any) => row.action === 'LOGIN_FAILED'));
+  assert.ok(Array.isArray(audit.data.filters.actions));
+
+  // Security overview
+  const securityRes = await fetch(base + '/api/v1/admin/security/overview', { headers: adminHeaders });
+  assert.equal(securityRes.status, 200);
+  const security = (await securityRes.json()) as any;
+  assert.ok(security.data.accounts.total >= 1);
+  assert.ok(security.data.authentication.failed_logins_24h >= 1);
+  assert.ok(security.data.roles.length >= 5);
+  assert.ok(typeof security.data.posture.jwt_secret_ephemeral === 'boolean');
+
+  // E-mail overview (SMTP is unconfigured in tests — attempts are recorded as SKIPPED)
+  const emailOverviewRes = await fetch(base + '/api/v1/admin/email/overview', { headers: adminHeaders });
+  assert.equal(emailOverviewRes.status, 200);
+  const emailOverview = (await emailOverviewRes.json()) as any;
+  assert.equal(emailOverview.data.smtp.configured, false);
+  assert.ok(typeof emailOverview.data.delivery.last_7d.sent === 'number');
+
+  // Sending an administrative e-mail — unconfigured SMTP returns delivered:false, not an error
+  const sendRes = await fetch(base + '/api/v1/admin/email/send', {
+    method: 'POST',
+    headers: adminHeaders,
+    body: JSON.stringify({ to: 'ops@example.com', subject: 'Console test', message: 'Hello from the super admin console.' }),
+  });
+  assert.equal(sendRes.status, 201);
+  const sendBody = (await sendRes.json()) as any;
+  assert.equal(sendBody.data.delivered, false);
+
+  // The attempt must be visible in the SMTP log
+  const smtpLogsRes = await fetch(base + '/api/v1/admin/email/logs?status=SKIPPED', { headers: adminHeaders });
+  assert.equal(smtpLogsRes.status, 200);
+  const smtpLogs = (await smtpLogsRes.json()) as any;
+  assert.ok(smtpLogs.data.items.some((row: any) => row.to_email === 'ops@example.com'));
+  assert.ok(smtpLogs.data.totals.skipped >= 1);
+
+  // Backups: create → list → download → delete
+  const createBackupRes = await fetch(base + '/api/v1/admin/backups', {
+    method: 'POST',
+    headers: adminHeaders,
+    body: JSON.stringify({ note: 'automated test snapshot' }),
+  });
+  assert.equal(createBackupRes.status, 201);
+  const backup = (await createBackupRes.json()) as any;
+  assert.ok(backup.data.size_bytes > 0);
+  assert.ok(backup.data.table_counts.users >= 1);
+  // Sensitive material must never leave the database verbatim.
+  assert.ok(JSON.stringify(backup.data.table_counts).length > 0);
+
+  const listBackupsRes = await fetch(base + '/api/v1/admin/backups', { headers: adminHeaders });
+  assert.equal(listBackupsRes.status, 200);
+  const backupsList = (await listBackupsRes.json()) as any;
+  const created = backupsList.data.items.find((row: any) => row.id === backup.data.id);
+  assert.ok(created && created.file_exists === true);
+  assert.equal(created.note, 'automated test snapshot');
+
+  const downloadRes = await fetch(base + `/api/v1/admin/backups/${backup.data.id}/download`, { headers: adminHeaders });
+  assert.equal(downloadRes.status, 200);
+  const downloadText = await downloadRes.text();
+  const downloadJson = JSON.parse(downloadText);
+  assert.equal(downloadJson.meta.platform, 'ThinkTank Academia');
+  assert.ok(downloadJson.tables.users.length >= 1);
+  assert.ok(downloadJson.tables.users.every((u: any) => !u.password_hash || !u.password_hash.startsWith('$2')));
+
+  const deleteRes = await fetch(base + `/api/v1/admin/backups/${backup.data.id}`, { method: 'DELETE', headers: adminHeaders });
+  assert.equal(deleteRes.status, 200);
+
+  // Non-admins must be locked out of every super-admin endpoint
+  const learnerLogin = await fetch(base + '/api/v1/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: 'ada@example.com', password: 'StrongPassword123' }),
+  });
+  const learnerToken = ((await learnerLogin.json()) as any).data.token;
+  for (const path of ['/system/health', '/security/overview', '/audit-logs', '/email/logs', '/backups']) {
+    const res = await fetch(base + `/api/v1/admin${path}`, { headers: { Authorization: `Bearer ${learnerToken}` } });
+    assert.equal(res.status, 403, `${path} must reject non-admins`);
+  }
+});
+
 test('account self-deletion cascades user-owned rows (media uploaded_by etc.)', async () => {
   const reg = await fetch(base + '/api/v1/auth/register', {
     method: 'POST',

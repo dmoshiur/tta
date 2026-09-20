@@ -160,3 +160,19 @@ All admin routes require an administrative role (`SUPER_ADMIN`, `CONTENT_ADMIN`,
 | `GET` | `/admin/analytics` | `analytics:read` | Aggregated telemetry: daily events, top courses, top articles, top pages. |
 | `GET` | `/admin/activity` | Admin role | Paginated audit trail of administrative actions. |
 | `POST` | `/admin/publish-scheduled` | write | Triggers immediate publishing of scheduled courses and articles. |
+
+### Super Admin console — system & operations (`admin-system.routes.ts`)
+
+| Method | Endpoint | Access | Description |
+| --- | --- | --- | --- |
+| `GET` | `/admin/system/health` | Admin role | Runtime (uptime, memory), database (mode, file size, table counts), services, 24h traffic and operational backlog. |
+| `GET` | `/admin/system/api-logs` | Admin role | Request-log analytics: totals, status buckets, slowest endpoints, top server errors + paginated log (`view=all\|errors\|server\|slow`, `q`, `method`). |
+| `GET` | `/admin/email/overview` | Admin role | SMTP configuration summary (no secrets), delivery stats (7d/30d), audience counts, recent sends and broadcasts. |
+| `POST` | `/admin/email/send` | `notifications:send` | Sends an administrative e-mail (rate limited 10/15min). Recorded in the SMTP log. |
+| `GET` | `/admin/email/logs` | Admin role | Paginated outgoing-mail audit trail (`status`, `q` filters) with totals. |
+| `GET` | `/admin/security/overview` | Admin role | Accounts, role distribution, devices, pending resets, failed logins (24h) and hardening posture. |
+| `GET` | `/admin/audit-logs` | Admin role | Searchable, filterable activity log (`q`, `action`, `entity_type`) with facet lists. |
+| `GET` | `/admin/backups` | Admin role | Lists backup snapshots with metadata and on-disk availability. |
+| `POST` | `/admin/backups` | `settings:write` | Creates a JSON snapshot of every table in `data/backups/` (password hashes, reset tokens and device tokens redacted). |
+| `GET` | `/admin/backups/:id/download` | `settings:write` | Streams the snapshot file. |
+| `DELETE` | `/admin/backups/:id` | `settings:write` | Deletes the snapshot file and its metadata row. |

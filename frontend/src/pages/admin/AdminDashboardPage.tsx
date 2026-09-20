@@ -39,10 +39,10 @@ export const AdminDashboardPage: React.FC = () => {
         </div>
 
         <div className="admin-quick-nav">
-          <Link to="/admin/r/courses" className="btn-primary-sm">{t('adminDash.manageCourses')}</Link>
+          <Link to="/admin/courses" className="btn-primary-sm">{t('adminDash.manageCourses')}</Link>
           <Link to="/admin/r/content" className="btn-primary-sm">{t('adminDash.manageArticles')}</Link>
-          <Link to="/admin/r/quizzes" className="btn-primary-sm">{t('adminDash.manageQuizzes')}</Link>
-          <Link to="/admin/media" className="btn-secondary-sm">{t('adminNav.media')}</Link>
+          <Link to="/admin/quizzes-tests" className="btn-primary-sm">{t('adminDash.manageQuizzes')}</Link>
+          <Link to="/admin/system/health" className="btn-secondary-sm">System Health</Link>
         </div>
       </header>
 
@@ -69,7 +69,7 @@ export const AdminDashboardPage: React.FC = () => {
         <div className="admin-stat-card">
           <span className="stat-label">{t('adminDash.booksLib')}</span>
           <strong className="stat-value">{stats.books}</strong>
-          <Link to="/admin/r/books" className="stat-action-link">{t('adminDash.manageBooks')} →</Link>
+          <Link to="/admin/books" className="stat-action-link">{t('adminDash.manageBooks')} →</Link>
         </div>
 
         <div className="admin-stat-card">
@@ -104,16 +104,17 @@ export const AdminDashboardPage: React.FC = () => {
           <div className="res-nav-card">
             <h3>🎓 {t('adminNav.gLms')}</h3>
             <ul>
-              <li><Link to="/admin/r/courses">{t('adminNav.courses')} ({stats.courses})</Link></li>
+              <li><Link to="/admin/courses">{t('adminNav.courses')} ({stats.courses})</Link></li>
               <li><Link to="/admin/r/modules">{t('adminNav.modules')} ({stats.modules})</Link></li>
               <li><Link to="/admin/r/lessons">{t('adminNav.lessons')} ({stats.lessons})</Link></li>
-              <li><Link to="/admin/r/assignments">{t('adminDash.assignments')}</Link></li>
+              <li><Link to="/admin/learning">{t('adminNav.learningManagement')}</Link></li>
             </ul>
           </div>
 
           <div className="res-nav-card">
             <h3>✍ {t('adminNav.gAssess')}</h3>
             <ul>
+              <li><Link to="/admin/quizzes-tests">{t('adminNav.quizzesTests')}</Link></li>
               <li><Link to="/admin/r/quizzes">{t('adminNav.quizzes')} ({stats.quizzes})</Link></li>
               <li><Link to="/admin/r/questions">{t('adminDash.questionBank')} ({stats.questions})</Link></li>
               <li><Link to="/admin/r/attempts">{t('adminDash.attemptHistory')} ({stats.attempts})</Link></li>
@@ -124,8 +125,20 @@ export const AdminDashboardPage: React.FC = () => {
             <h3>📖 {t('adminNav.gEditorial')}</h3>
             <ul>
               <li><Link to="/admin/r/content">{t('adminNav.content')} ({stats.content})</Link></li>
-              <li><Link to="/admin/r/books">{t('adminNav.books')} ({stats.books})</Link></li>
-              <li><Link to="/admin/r/categories">{t('adminDash.taxonomy')} ({stats.categories})</Link></li>
+              <li><Link to="/admin/books">{t('adminNav.books')} ({stats.books})</Link></li>
+              <li><Link to="/admin/categories">{t('adminNav.categories')} ({stats.categories})</Link></li>
+            </ul>
+          </div>
+
+          <div className="res-nav-card">
+            <h3>🛡 {t('adminNav.gOperations')}</h3>
+            <ul>
+              <li><Link to="/admin/security">{t('adminNav.security')}</Link></li>
+              <li><Link to="/admin/system/health">{t('adminNav.systemHealth')}</Link></li>
+              <li><Link to="/admin/system/api-logs">{t('adminNav.apiLogs')}</Link></li>
+              <li><Link to="/admin/audit-logs">{t('adminNav.auditLogs')}</Link></li>
+              <li><Link to="/admin/backups">{t('adminNav.backups')}</Link></li>
+              <li><Link to="/admin/email">{t('adminNav.emailCenter')}</Link></li>
             </ul>
           </div>
 
