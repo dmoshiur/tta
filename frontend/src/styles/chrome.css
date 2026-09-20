@@ -940,12 +940,51 @@
   .nav-link:hover::after, .nav-link.active::after { left: 0.5rem; right: 0.5rem; }
 }
 
+/* ── Mobile navbar alignment fix ────────────────────────────────────────
+   Keep logo on the left, push Search + Join + Hamburger together to the right.
+   Overrides the desktop sibling rule (.desktop-nav + .header-actions) which
+   otherwise removes margin-left:auto on mobile when desktop-nav is hidden.
+*/
 @media (max-width: 1023px) {
-  .header-inner { height: 64px; gap: 0.6rem; }
+  .header-inner {
+    height: 64px;
+    gap: 0.6rem;
+    justify-content: space-between;
+  }
+  .brand-logo {
+    flex: 0 0 auto;
+    margin-right: 0;
+  }
   .brand-logo-img { height: 42px; }
+
+  .header-actions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    flex: 0 0 auto;
+  }
+  /* Override desktop rule that sets margin-left:0 when following .desktop-nav */
+  .desktop-nav + .header-actions {
+    margin-left: auto;
+  }
+
+  .guest-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: 0;
+  }
   .guest-actions .btn-signin { display: none; }
   .user-firstname { display: none; }
   .lang-switcher.header-lang { display: none; }
+
+  /* Ensure search, join, hamburger are vertically centered and grouped right */
+  .header-actions .action-icon-btn,
+  .header-actions .mobile-hamburger {
+    flex: 0 0 auto;
+  }
 }
 
 @media (max-width: 860px) {
