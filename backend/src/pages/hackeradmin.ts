@@ -216,7 +216,7 @@ export const HACKERADMIN_HTML = `<!doctype html>
   <div class="portal" role="main">
     <!-- ══ SECURE LOGIN ══ -->
     <section id="login-view">
-      <img class="logo rise d1" src="/brand/logo-light.svg" alt="ThinkTank Academia" width="640" height="400"/>
+      <img class="logo rise d1" src="/brand/logo.png" alt="ThinkTank Academia" width="1408" height="768"/>
       <p class="eyebrow rise d2">ThinkTank Academia</p>
       <h1 class="rise d2">Admin Access</h1>
       <p class="sub rise d3">Enter your access code to continue.</p>

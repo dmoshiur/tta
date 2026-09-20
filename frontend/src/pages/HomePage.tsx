@@ -8,7 +8,7 @@ import { QuizCard } from '../components/QuizCard.tsx';
 import { ErrorState, SkeletonHero, SkeletonGrid } from '../components/States.tsx';
 import { Reveal, RevealGroup } from '../components/Reveal.tsx';
 import { CountUp } from '../components/CountUp.tsx';
-import { BrandEmblem } from '../components/BrandLogo.tsx';
+import { BrandLogo } from '../components/BrandLogo.tsx';
 import { IconArrowRight, IconArrowUpRight } from '../components/icons.tsx';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useI18n } from '../i18n/index.tsx';
@@ -175,8 +175,7 @@ export const HomePage: React.FC = () => {
             </Reveal>
 
             <div className="hero-brand-chip" aria-hidden="true">
-              <BrandEmblem />
-              <span>Learn · Think</span>
+              <BrandLogo className="hero-chip-logo" />
             </div>
 
             {hero.quote?.text && (

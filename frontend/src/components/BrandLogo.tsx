@@ -1,51 +1,45 @@
 import React from 'react';
 
 /**
- * BrandLogo — renders the OFFICIAL ThinkTank Academia logo artwork.
- *
- * The supplied logo already contains the "ThinkTank ACADEMIA" wordmark and
- * the "Learn • Think • Understand • Unite" tagline, so no brand text is
- * rendered beside it (per brand guidelines).
- *
- * Variants:
- *   surface="light" → artwork tuned for light backgrounds  (/brand/logo-light.svg)
- *   surface="dark"  → artwork tuned for dark backgrounds   (/brand/logo-dark.svg)
- *
- * Original proportions (640 × 400) are always preserved — height scales,
- * width follows automatically.
+ * Official ThinkTank Academia brand artwork.
+ * ONE master file — the user's official logo (1408×768, white background):
+ *   /brand/logo.png
+ * It is used EXACTLY as provided site-wide. On dark surfaces the logo sits on
+ * its native white background inside a small white chip (the artwork itself is
+ * never altered, recolored, or cropped).
  */
 export const BRAND = {
-  logoForLight: '/brand/logo-light.svg',
-  logoForDark: '/brand/logo-dark.svg',
-  emblem: '/brand/emblem.svg',
+  logo: '/brand/logo.png',
+  emblem: '/brand/logo.png',
+  width: 1408,
+  height: 768,
+  name: 'ThinkTank Academia',
 } as const;
 
 export const BrandLogo: React.FC<{
+  /** kept for API compatibility; artwork is identical on every surface — on dark surfaces a white chip wraps it */
   surface?: 'light' | 'dark';
   className?: string;
-}> = ({ surface = 'light', className = '' }) => (
+  alt?: string;
+}> = ({ surface = 'light', className, alt = BRAND.name }) => (
   <img
-    src={surface === 'dark' ? BRAND.logoForDark : BRAND.logoForLight}
-    alt="ThinkTank Academia — Learn • Think • Understand • Unite"
-    className={`brand-logo-img${className ? ` ${className}` : ''}`}
-    width={640}
-    height={400}
-    decoding="async"
+    src={BRAND.logo}
+    alt={alt}
+    width={BRAND.width}
+    height={BRAND.height}
+    className={`brand-logo-img${surface === 'dark' ? ' brand-logo-on-dark' : ''}${className ? ` ${className}` : ''}`}
     draggable={false}
   />
 );
 
-export const BrandEmblem: React.FC<{ className?: string; alt?: string }> = ({
-  className = '',
-  alt = '',
-}) => (
+/** The official logo used as a compact emblem — shown contain-style. */
+export const BrandEmblem: React.FC<{ className?: string }> = ({ className }) => (
   <img
-    src={BRAND.emblem}
-    alt={alt}
-    className={className}
-    width={240}
-    height={210}
-    decoding="async"
+    src={BRAND.logo}
+    alt=""
+    width={BRAND.width}
+    height={BRAND.height}
+    className={`brand-emblem-img${className ? ` ${className}` : ''}`}
     draggable={false}
   />
 );

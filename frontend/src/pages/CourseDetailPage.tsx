@@ -6,7 +6,7 @@ import { useToast } from '../context/ToastContext.tsx';
 import type { Course } from '../types/index.ts';
 import { CourseCard } from '../components/CourseCard.tsx';
 import { LoadingState, ErrorState } from '../components/States.tsx';
-import { BrandEmblem } from '../components/BrandLogo.tsx';
+import { BrandLogo } from '../components/BrandLogo.tsx';
 import { useI18n } from '../i18n/index.tsx';
 
 export const CourseDetailPage: React.FC = () => {
@@ -172,7 +172,7 @@ export const CourseDetailPage: React.FC = () => {
               <img src={course.thumbnail_url} alt="" className="course-hero-img" />
             ) : (
               <div className="course-hero-placeholder">
-                <BrandEmblem className="placeholder-logo" />
+                <BrandLogo className="placeholder-logo" />
                 <small>{course.title}</small>
               </div>
             )}

@@ -277,7 +277,7 @@
   border: 1px solid rgba(228, 201, 126, 0.3);
   animation: floaty 9s ease-in-out infinite 1.2s;
 }
-.hero-brand-chip img { height: 34px; width: auto; }
+.hero-chip-logo { height: 58px; width: auto; }
 .hero-brand-chip span {
   font-size: 0.64rem;
   font-weight: 700;
