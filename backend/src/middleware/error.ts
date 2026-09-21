@@ -5,9 +5,23 @@ import { fail } from '../lib/http.ts';
 import { logger } from '../lib/logger.ts';
 import { config } from '../config.ts';
 
-/** JSON 404 for unknown API paths; the SPA fallback middleware handles everything else. */
+/**
+ * JSON 404 for unknown API paths; the SPA fallback middleware handles everything else.
+ *
+ * The handler is mounted at `/api`, so `req.path` alone would read `/v1/foo` —
+ * confusing when the browser shows `/api/v1/foo`. Report the full path and point
+ * the caller at the discovery document.
+ */
 export function apiNotFound(req: Request, res: Response): void {
-  fail(res, new ApiError(404, 'NOT_FOUND', `No API route matches ${req.method} ${req.path}.`));
+  const fullPath = `${req.baseUrl}${req.path}`;
+  fail(
+    res,
+    new ApiError(404, 'NOT_FOUND', `No API route matches ${req.method} ${fullPath}.`, {
+      hint: 'Open GET /api/v1 for the list of available endpoints.',
+      index: '/api/v1',
+      health: '/api/v1/health',
+    }),
+  );
 }
 
 /**

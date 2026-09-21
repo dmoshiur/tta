@@ -1,6 +1,11 @@
 # ThinkTank Academia — REST API v1 Specification
 
-Base URL: `https://YOUR_SERVICE.onrender.com/api/v1` (or relative `/api/v1` for the web client).
+Base URL: `https://thinktank-academia.onrender.com/api/v1` (or relative `/api/v1` for the web client).
+
+Opening the base URL in a browser returns the **discovery document** (see §0) — a
+`200` JSON response describing the service, the auth scheme and every public
+endpoint. Anything else that does not match a route returns the JSON `404`
+envelope below with a `details.hint` pointing back at the discovery document.
 
 Responses follow a uniform envelope:
 ```json
@@ -24,6 +29,56 @@ Errors follow a uniform envelope:
 
 Protected endpoints require the standard header:
 `Authorization: Bearer <jwt-token>`
+
+---
+
+## 0. API Root, Discovery & Health
+
+These endpoints are static (no database access) and are the right place for a
+client to confirm it is talking to the correct service before signing in.
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api` | No | Version listing: `{ latest: "v1", versions: [{ version, status, url, health }], health, docs }`. |
+| `GET` | `/api/v1` (or `/api/v1/`) | No | **Discovery document** — `name`, `version`, `release`, `status`, `env`, `time`, `baseUrl`, `links` (health/meta/home/web/docs), `auth` (Bearer scheme + where to obtain a token), `envelope` samples, `rateLimit`, and `groups[]` — every public endpoint with `method`, `path`, `auth` (`public` / `optional` / `user` / `admin`) and a one-line description. |
+| `GET` | `/api/health` | No | Liveness probe used by Render's health check: `{ ok: true, service, timestamp }` (plain object, not enveloped). Always reachable — even while the site is switched off. |
+| `GET` | `/api/v1/health` | No | Same probe for the v1 namespace: `{ ok: true, service, version: "v1", env }`. |
+
+Example — `GET https://thinktank-academia.onrender.com/api/v1`:
+```json
+{
+  "success": true,
+  "data": {
+    "name": "ThinkTank Academia API",
+    "service": "thinktank-academia",
+    "version": "v1",
+    "release": "2.0.0",
+    "status": "ok",
+    "baseUrl": "https://thinktank-academia.onrender.com/api/v1",
+    "links": { "health": ".../api/v1/health", "meta": ".../api/v1/meta", "home": ".../api/v1/home" },
+    "auth": { "scheme": "Bearer", "header": "Authorization: Bearer <token>", "obtainToken": ["POST /api/v1/auth/register", "POST /api/v1/auth/login"] },
+    "totalEndpoints": 64,
+    "groups": [
+      { "id": "auth", "label": "Authentication", "base": "/api/v1/auth",
+        "endpoints": [ { "method": "POST", "path": "/api/v1/auth/login", "auth": "public", "description": "Exchange { email, password } for { token, user }." } ] }
+    ]
+  }
+}
+```
+
+Unknown API paths (`GET /api/v1/does-not-exist`) answer:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "No API route matches GET /api/v1/does-not-exist.",
+    "details": { "hint": "Open GET /api/v1 for the list of available endpoints.", "index": "/api/v1", "health": "/api/v1/health" }
+  }
+}
+```
+
+The catalogue served by `GET /api/v1` is defined in `backend/src/routes/index.routes.ts` — keep it in sync when adding routes.
 
 ---
 
