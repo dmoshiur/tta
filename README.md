@@ -94,7 +94,7 @@ thinktank-academia/
    npm run dev
    ```
    - Web application: `http://localhost:5173`
-   - REST API: `http://localhost:3000/api/v1`
+   - REST API: `http://localhost:3000/api/v1` — opening the base URL returns the API discovery document (version, auth scheme, every endpoint); `GET /api` lists versions
    - Health endpoint: `http://localhost:3000/api/health`
 
 4. Automated administrative seeding:
@@ -138,6 +138,7 @@ This repository is configured for one-click deployment using Render Blueprints (
    - `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD`: Required for passcode e-mails and password resets.
 5. Health check:
    - Health path: `/api/health` returns `200 OK`.
+   - API base URL for the apps: `https://thinktank-academia.onrender.com/api/v1` — `GET` on it returns the discovery document (confirms the backend is reachable and lists every endpoint the Android app can call).
 6. Static & SPA Serving:
    - In production, Express automatically serves `dist/` and routes all non-API paths to `index.html`.
 

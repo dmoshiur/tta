@@ -36,7 +36,9 @@ The Android app talks to the **same backend** that powers the website (Express +
 >
 > If the app must call plain HTTP during development, enable cleartext only for debug builds (`android:usesCleartextTraffic="true"` in a debug manifest). Release builds must use HTTPS.
 
-Health check: `GET {BASE_URL}/health` → `{ "success": true, "data": { "status": "ok" } }`.
+Health check: `GET {BASE_URL}/health` → `{ "ok": true, "service": "thinktank-academia", "version": "v1", "env": "production" }` (a plain object — the only response that is **not** wrapped in the `{ success, data }` envelope).
+
+API root: `GET {BASE_URL}` (i.e. `https://thinktank-academia.onrender.com/api/v1/`) → `{ "success": true, "data": { "version": "v1", "status": "ok", "baseUrl": …, "auth": …, "groups": [ …every endpoint with method/path/auth… ] } }`. Open it in a browser to confirm the backend is live and see the complete endpoint catalogue; unknown paths return the `NOT_FOUND` error envelope with a `details.hint`.
 
 ### Authentication model (JWT)
 

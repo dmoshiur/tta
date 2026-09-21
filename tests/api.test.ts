@@ -25,6 +25,55 @@ test('health contracts', async () => {
   assert.equal(v1.status, 200);
 });
 
+test('API root and v1 discovery documents', async () => {
+  // GET /api lists the available versions and points at the current one
+  const rootRes = await fetch(base + '/api');
+  assert.equal(rootRes.status, 200);
+  const root = (await rootRes.json()) as any;
+  assert.equal(root.success, true);
+  assert.equal(root.data.service, 'thinktank-academia');
+  assert.equal(root.data.latest, 'v1');
+  assert.equal(root.data.versions[0].version, 'v1');
+  assert.equal(root.data.versions[0].url, `${base}/api/v1`);
+
+  // GET /api/v1 — the base URL the web and Android clients are configured with
+  const indexRes = await fetch(base + '/api/v1');
+  assert.equal(indexRes.status, 200);
+  const index = (await indexRes.json()) as any;
+  assert.equal(index.success, true);
+  assert.equal(index.data.version, 'v1');
+  assert.equal(index.data.status, 'ok');
+  assert.equal(index.data.baseUrl, `${base}/api/v1`);
+  assert.equal(index.data.auth.scheme, 'Bearer');
+  assert.ok(Array.isArray(index.data.groups) && index.data.groups.length >= 8);
+  assert.ok(index.data.totalEndpoints >= 60);
+
+  // Every catalogued endpoint is absolute under /api/v1 and carries an auth level
+  const endpoints = index.data.groups.flatMap((g: any) => g.endpoints);
+  assert.equal(endpoints.length, index.data.totalEndpoints);
+  for (const endpoint of endpoints) {
+    assert.ok(endpoint.path.startsWith('/api/v1/'), `unexpected path ${endpoint.path}`);
+    assert.ok(['public', 'optional', 'user', 'admin'].includes(endpoint.auth));
+    assert.ok(['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(endpoint.method));
+  }
+  assert.ok(endpoints.some((x: any) => x.method === 'POST' && x.path === '/api/v1/auth/login'));
+  assert.ok(endpoints.some((x: any) => x.method === 'GET' && x.path === '/api/v1/courses'));
+
+  // Trailing slash (what a browser or Retrofit base URL sends) must not 404
+  const slashRes = await fetch(base + '/api/v1/');
+  assert.equal(slashRes.status, 200);
+  assert.equal(((await slashRes.json()) as any).data.version, 'v1');
+
+  // Unknown API paths still return the JSON 404 — now with the full path and a hint
+  const missing = await fetch(base + '/api/v1/does-not-exist');
+  assert.equal(missing.status, 404);
+  const missingBody = (await missing.json()) as any;
+  assert.equal(missingBody.success, false);
+  assert.equal(missingBody.error.code, 'NOT_FOUND');
+  assert.ok(missingBody.error.message.includes('GET /api/v1/does-not-exist'));
+  assert.equal(missingBody.error.details.index, '/api/v1');
+});
+
 test('meta and sections taxonomy', async () => {
   const metaRes = await fetch(base + '/api/v1/meta');
   assert.equal(metaRes.status, 200);
@@ -642,7 +691,8 @@ test('hackeradmin: passcode login, site switch, traffic and admin views', async 
   const pageRes = await fetch(base + '/hackeradmin');
   assert.equal(pageRes.status, 200);
   const page = await pageRes.text();
-  assert.ok(page.includes('HACKER ADMIN'));
+  assert.ok(page.includes('Admin Access'));
+  assert.ok(page.includes('/api/v1/hackeradmin'));
 });
 
 test.after(async () => {

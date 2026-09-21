@@ -19,11 +19,59 @@ ThinkTank API ── Android App (Kotlin / Jetpack Compose)
              Turso SQLite Database
 ```
 
-- **Base URL:** `https://YOUR_SERVICE.onrender.com/api/v1/`
+- **Base URL (production):** `https://thinktank-academia.onrender.com/api/v1/`
+  (Retrofit requires the trailing slash. Opening this URL in a browser returns the API discovery document — a `200` JSON listing of every endpoint — so you can confirm the service is up and that the app is pointed at the right host.)
 - **Authentication:** Standard JWT Bearer token in the `Authorization: Bearer <token>` header.
 - **Envelope Format:**
   - Success: `{ "success": true, "data": T }`
   - Error: `{ "success": false, "error": { "code": string, "message": string, "details": any } }`
+- **No CORS, no API key:** native apps are not subject to browser CORS rules, and every public endpoint works without any credential. Only `user`/`admin` endpoints need the Bearer token obtained from `POST auth/login` or `POST auth/register`.
+- **Connectivity check:** `GET health` (→ `{ ok: true, version: "v1" }`) is the cheapest ping; `GET ""` (the base URL itself) returns the full discovery document with `baseUrl`, `links`, `auth` and `groups[]`.
+
+### Quick verification from a terminal
+
+```bash
+curl https://thinktank-academia.onrender.com/api/v1/health
+# {"ok":true,"service":"thinktank-academia","version":"v1","env":"production"}
+
+curl https://thinktank-academia.onrender.com/api/v1/
+# {"success":true,"data":{"name":"ThinkTank Academia API","version":"v1", ... "groups":[...]}}
+
+curl -X POST https://thinktank-academia.onrender.com/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"you@example.com","password":"your-password"}'
+# {"success":true,"data":{"token":"eyJ...","user":{...}}}
+```
+
+### Gradle — put the base URL in `BuildConfig`
+
+```kotlin
+// app/build.gradle.kts
+android {
+    buildFeatures { buildConfig = true }
+    buildTypes {
+        debug {
+            // Emulator → host machine running `npm run dev:api` (port 3000). Use your LAN IP for a physical device.
+            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:3000/api/v1/\"")
+        }
+        release {
+            buildConfigField("String", "API_BASE_URL", "\"https://thinktank-academia.onrender.com/api/v1/\"")
+        }
+    }
+}
+```
+
+```kotlin
+val retrofit = Retrofit.Builder()
+    .baseUrl(BuildConfig.API_BASE_URL)        // must end with "/"
+    .client(okHttpClient)
+    .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+    .build()
+```
+
+The debug flavour talks plain HTTP to your dev machine, so allow cleartext for
+that build only (`android:usesCleartextTraffic="true"` in a debug manifest or a
+`network_security_config.xml` scoped to `10.0.2.2`). Production is HTTPS.
 
 ---
 

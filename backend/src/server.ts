@@ -28,6 +28,7 @@ import { discoveryRoutes } from './routes/discovery.routes.ts';
 import { adminRoutes } from './routes/admin.routes.ts';
 import { hackerAdminRoutes } from './routes/hackeradmin.routes.ts';
 import { mediaRoutes } from './routes/media.routes.ts';
+import { apiIndexRoutes } from './routes/index.routes.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -164,6 +165,11 @@ app.get('/hackeradmin', (_req, res) => {
 app.use(siteGuard);
 
 // ── API Routes (v1) ─────────────────────────────────────────────────────────
+
+// API front door: GET /api lists versions, GET /api/v1 (or /api/v1/) returns the
+// discovery document — base URL, auth scheme, envelope and endpoint catalogue.
+// Without this the base URL fell through to the JSON 404 below.
+app.use('/api', apiIndexRoutes);
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
